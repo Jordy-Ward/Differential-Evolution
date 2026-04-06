@@ -7,7 +7,7 @@ from cilpy.problem import Problem, Evaluation
 from cilpy.solver import Solver
 
 
-class DE(Solver[List[float], float]):
+class DE_UNDX(Solver[List[float], float]):
     """
     A canonical Differential Evolution (DE) solver for single-objective
     optimization.
@@ -77,13 +77,15 @@ class DE(Solver[List[float], float]):
             # Select five distinct individuals other than the target
             indices = list(range(self.population_size))
             indices.remove(i)
-            r1, r2, r3, r4, r5 = random.sample(indices, 5)
+            r1, r2, r3, r4, r5, r6 = random.sample(indices, 6)
 
             x_r1 = self.population[r1]
             x_r2 = self.population[r2]
             x_r3 = self.population[r3]
             x_r4 = self.population[r4]
             x_r5 = self.population[r5]
+            
+            x3 = self.population[r6]
             
 
             donor_vector = [
@@ -93,7 +95,7 @@ class DE(Solver[List[float], float]):
 
             # 2. Recombination (Create Trial Vector) - UNDIX
             # Parent, mutant, and a random selected vector != to parent
-            x3 = x_r1
+            
             dim = self.problem.dimension
             sigma_xi = 0.5
             sigma_eta = 0.35 / math.sqrt(dim)

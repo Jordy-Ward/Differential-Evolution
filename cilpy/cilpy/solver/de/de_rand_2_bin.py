@@ -6,7 +6,7 @@ from cilpy.problem import Problem, Evaluation
 from cilpy.solver import Solver
 
 
-class DE(Solver[List[float], float]):
+class DE_bin(Solver[List[float], float]):
     """
     A canonical Differential Evolution (DE) solver for single-objective
     optimization.
