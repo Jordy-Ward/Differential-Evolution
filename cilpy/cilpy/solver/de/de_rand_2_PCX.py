@@ -92,39 +92,51 @@ class DE_PCX(Solver[List[float], float]):
                 for j in range(self.problem.dimension)
             ]
 
-            # 2. Recombination (Create Trial Vector) - PCX
-            # Parent, mutant, and a random selected vector != to parent
+            # 2. Recombination (Create Trial Vector) - Generalized PCX
             dim = self.problem.dimension
             sigma_xi = 0.1
             sigma_eta = 0.1
             
-            # calculate distance between target vector and mutation vector (donor)
-            d = [donor_vector[j] - target_vector[j] for j in range(dim)] # cycle over every dmension for this target vector. Where the bell curv will gen new off spring
-            # in pcx the center of the bell is dropped right on the parent
-            m = target_vector #center gravity. Mean normal distr. Where the algo aims throwing darts. Spreads them out along d.
+            # Step A: Identify the three parents
+            p1 = target_vector  # The primary parent (x_i in the slides)
+            p2 = donor_vector
+            p3 = x3
             
-            # calculate the euclidean length magnitude of d
+            # Step B: Calculate Center of Mass
+            O = [(p1[j] + p2[j] + p3[j]) / 3.0 for j in range(dim)]
+            
+            # Step C: Compute Direction Vector (d_i)
+            # The vector from the center of mass to the primary parent
+            d = [p1[j] - O[j] for j in range(dim)] 
+            m = p1  # The bell curve is centered on the primary parent
+            
+            # Calculate the euclidean length magnitude of d
             d_mag_sq = sum(val**2 for val in d)
             d_mag = math.sqrt(d_mag_sq)
             
-            # calculate the orthogonal distance D from x3 to the primary d vector
-            v = [x3[j] - target_vector[j] for j in range(dim)]
+            # Step D: Compute Average Perpendicular Distance (D_bar)
+            def calc_perp_distance(x_other):
+                # Vector from the primary parent to the other parent
+                v = [x_other[j] - p1[j] for j in range(dim)] 
+                if d_mag_sq > 1e-10: 
+                    v_dot_d = sum(v[j] * d[j] for j in range(dim))
+                    proj_v_on_d = [(v_dot_d / d_mag_sq) * d[j] for j in range(dim)]
+                    orth_v = [v[j] - proj_v_on_d[j] for j in range(dim)]
+                    return math.sqrt(sum(val**2 for val in orth_v))
+                return 0.0
+
+            # Calculate distances for the other n-1 parents
+            delta_2 = calc_perp_distance(p2)
+            delta_3 = calc_perp_distance(p3)
             
-            if d_mag_sq > 1e-10: #if parent and mutant are very close it can cause a div zero error
-                v_dot_d = sum(v[j] * d[j] for j in range(dim))
-                proj_v_on_d = [(v_dot_d / d_mag_sq) * d[j] for j in range(dim)]
-                orth_v = [v[j] - proj_v_on_d[j] for j in range(dim)]
-                D = math.sqrt(sum(val**2 for val in orth_v)) # how fat to make the bell curve
-            else:
-                D = 0.0
+            # Average the distances
+            D_bar = (delta_2 + delta_3) / 2.0
                 
-            # create the child vectors. The trial vectors using normal distribution
+            # Step E: Create Trial Vector
             trial_vector = [0.0] * dim
-            xi = random.gauss(0, sigma_xi) # primary axis noise. How far up down the vector d to move
+            xi = random.gauss(0, sigma_xi) # Primary axis noise
             
-            # generate random gauss vector. How far left perp to move
-            # so we need to extract the perp comp again, else we would add extra up down movement, already
-            # handled in the xi
+            # Generate random gauss vector and extract orthogonal component
             z = [random.gauss(0, 1) for _ in range(dim)]
             if d_mag_sq > 1e-10:
                 z_dot_d = sum(z[j] * d[j] for j in range(dim))
@@ -133,9 +145,9 @@ class DE_PCX(Solver[List[float], float]):
             else:
                 z_orth = z
                 
-            # assemble the off spring
+            # Assemble the offspring
             for j in range(dim):
-                trial_vector[j] = m[j] + (xi * d[j]) + (z_orth[j] * sigma_eta * D)
+                trial_vector[j] = m[j] + (xi * d[j]) + (z_orth[j] * sigma_eta * D_bar)
             
             # Ensure trial vector is within bounds
             for j in range(self.problem.dimension):

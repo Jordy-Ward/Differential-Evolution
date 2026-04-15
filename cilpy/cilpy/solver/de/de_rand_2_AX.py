@@ -85,7 +85,7 @@ class DE_AX(Solver[List[float], float]):
             x_r5 = self.population[r5]
             
 
-            donor_vector = [
+            donor_vector = [ # target vector
                 x_r1[j] + self.f_weight * (x_r2[j] - x_r3[j]) + self.f_weight * (x_r4[j] - x_r5[j])
                 for j in range(self.problem.dimension)
             ]
