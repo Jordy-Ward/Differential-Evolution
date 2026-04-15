@@ -1,7 +1,9 @@
 import sys
 import os
 
-from cilpy.problem.de_benchmark_funcs import Rastrigin, Ackley, Griewank, Schwefel, Michalewicz
+from cilpy.problem.de_benchmark_funcs import (
+    Rastrigin, Ackley, Griewank, Schwefel, Michalewicz, Levy, Salomon, Alpine1
+)
 from cilpy.solver.de.de_rand_2_bin import DE_bin
 from cilpy.runner import ExperimentRunner
 
@@ -11,7 +13,10 @@ def main():
         Ackley(dimension=30),
         Griewank(dimension=30),
         Schwefel(dimension=30),
-        Michalewicz(dimension=30)
+        Michalewicz(dimension=30),
+        Levy(dimension=30),
+        Salomon(dimension=30),
+        Alpine1(dimension=30)
     ]
 
     solver_configs = [
