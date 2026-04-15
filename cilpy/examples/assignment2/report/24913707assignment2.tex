@@ -1,0 +1,392 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{listings} % Added FOR Haskell FORmatting
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{microtype}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Differential Evolution: Study of Real-Valued Continuous Crossover Operators}
+
+\author{\IEEEauthorblockN{J.M. Ward}
+\IEEEauthorblockA{\textit{Computer Science Department} \\
+\textit{Stellenbosch University}\\
+Stellenbosch, South Africa \\
+24913707@sun.ac.za
+}
+}
+
+\maketitle
+\thispagestyle{plain}
+\pagestyle{plain}
+
+\begin{abstract}
+    Differential Evolution (DE) algorithms have been developed to solve continuous-valued optimisation problems. Interestingly, the canonical DE algorithm utilises discrete 
+    recombination crossover to build child vectors throughout the algorithm's life span. In this report advanced continuous crossover operators are 
+    implemented and tested against 8 multi-modal benchmark functions to determine if crossover mechanisms intentionally designed for  
+    real-valued representations outperform standard discrete recombination. By specifically implementing blending crossover operators and using  
+    them in DE algorithms, a significant improvement in continuous optimisation performance and accuracy is hypothesised. Experimental evaluation was performed 
+    at 30 dimensions over 30 independent runs for 3000 generations each. Results indicate that continuous blending methods, particularly those utilising expanded barycentric and normal distributions, significantly outperform the discrete baseline on macro-gradient and deceptive landscapes. However, exploitative  parent-centric methods remain vulnerable to premature convergence.  
+\end{abstract}
+
+\section{Introduction}
+    
+    Differential Evolution (DE) is a population-based stochastic optimisation algorithm widely 
+    utilised for solving complex, non-linear continuous optimisation problems. The algorithm 
+    improves a candidate population iterativley through mutation, recombination and selection. While DE 
+    has proven highly successful, its canonical formulation contains a fundamental geometric 
+    contradiction when applied to continuous landscapes.
+
+    The standard DE algorithm-such as the widely used DE/rand/2/bin varient-relies on discrete 
+    binomial recombination to generate child vectors. Binomial crossover operates by independently swapping exact parameter values between a target vector and a mutated trial vector. While computationally efficient, this discrete swapping mechanism restricts the algorithm's search 
+    trajectory to a rigid grid, which limits its ability to effectively navigate continuous, non 
+    separable landscapes.
+
+    To overcome the geometric limitations of discrete recombination, real-valued blending 
+    crossover operators have been developed. Operators such as Uniform Arithmetic Crossover (AX), 
+    Simplex Crossover (SPX), Unimodal Normal Distribution Crossover (UNDX), and Parent-Centric Crossover (PCX), generate offspring within a continuous mathematical space, such as barycentric 
+    expanded triangles or multi-dimensional Guassian ellipsoids. Because these methods generate new vector geometry defined by the relative positions of the parent vectors rather than the axes of the search grid, they are coordinate-independent and offer highly specialised mechanisms for both 
+    local exploitation and global exploration. 
+
+    The primary goal of this report is to investigate the efficacy of integrating these continuous blending crossover operators into the standard DE algorithm. By replacing the canonical binomial crossover with AX, SPX, UNDX and PCX, this study evaluates whether implemented real valued recombination operators outperform discrete parameter swapping. The modified algorithms were benchmarked across 8 multi-modal, 30 dimensional functions. Experimental observations confirm continuous blending crossover operators significantly enhance performance on specific topographies. Crossover operators AX and UNDX demonstrated superior exploitation on macro-gradient landscapes, while the expanded exploratory geometry of PSX successfully bypassed deceptive geometric traps. Conversely, highly exploitative operators like PCX were observed to be uniquely vulnerable to premature convergence on multi-modal surfaces.
+
+    The remainder of this report is organised as follows. Section 2 details the mathematical formulations of the implemented crossover operators. Section 3 outlines the experimental setup, benchmark functions and testing parameters. Section 4 present the convergence data and provides comparative analysis of the algorithms' performances. Finally, Section 5 concludes the report and summarises the key findings. 
+
+
+\section{Background}
+
+    Continuous optimisation involves finding the global minimum or maximum of an objective function within a multi-dimensional search space. These geometric landscapes are multi-modal and can contain many local optima that act as traps for traditional gradient-based search methods. To overcome this challenge, stochastic metaheuristic algorithms are deployed to the landscapes. These algorithms must balance exploration (searching broadly across the entire landscape) with exploitation (narrowing the search locally to fine tune a solution) in order to successfully converge on the true global solution.  
+
+    Differential Evolution (DE) is a prominent subset of Evolutionary Algorithms (EA) explicitly developed to solve continuous-valued optimisation problems.  Like traditional EA's, DE utilises a population of candidate solutions that evolve over successive generations. However, unlike other EA's that apply selection before mutation, DE performs the mutation of a random vector before applying selection. The mutation process itself also differs in the manner that mutation step sizes are not sampled from a prior known probability distribution function but rather, the mutation step size is influenced by the differences between individuals of the current population. 
+
+    The canonical DE algorithm, frequently denoted by the mutation and crossover strategy DE/rand/1/bin, operates through a continuous loop of four primary phases: Initialisation, Mutation, Recombination, and Selection. During mutation, a trial vector is created by adding together a weighted difference of randomly selected population vectors to the target vector. Recombination then mixes the parameters of the trial vector and the target vector to create offspring vectors. Finally an elitist selection mechanism compares the target vector to the spawned offspring vector, keeping strictly the candidate that yields the better fitness. The high level execution of a standard DE algorithm is illustrated in Algorithm 1. 
+
+    \begin{algorithm}[H]
+    \caption{Algorithm 1: Standard Differential Evolution}
+    \label{alg:canonical_de}
+    \begin{algorithmic}[1] % adds line numbers
+    \STATE \textbf{Initialise} population of individuals randomly within the bounds
+    \WHILE{termination condition is not met}
+        \FOR{each target vector in the population}
+            \STATE Select distinct random vectors from the population
+            \STATE Create trial vector using vector differences and scale factor (F)
+            \STATE Create an offspring vector by combining parameters of the trial vector and the target vector based on crossover rate (CR)
+            \STATE Evaluate the fitness of the trial vector
+            \IF{offspring vector fitness <= target vector fitness}
+                \STATE Replace target vector with offspring vector in next generation
+            \ENDIF
+        \ENDFOR
+    \ENDWHILE
+    \end{algorithmic}
+    \end{algorithm}
+
+    The recombnation phase is critical for injecting diversity and guiding the search geometry. In standard DE this is achieved using discrete operators like binomial or exponential crossover. These algorithms build offspring vectors by independently swapping exact parameter values along the search axes. This approach is coordinate dependent and struggles on rotated or non-separable landscapes. To address this, extensive literature within the domain of Real-Coded Genetic Algorithms (RCGAs) has explored continuous blending operators. Instead of swapping axis coordinates, these continuous operators create offspring by exploring the mathematical volume or geometry between parents. By utilizing techniques like arithmetic interpolation, simplex expansions, or Gaussian probability distributions, the geometric space between target vectors can be explored in much finer detial.
+
+
+\section{Methodology}
+    This section details the algorithm architectures to test against the chosen 
+    Large Scale Optimisation Problems. The algorithms were implemented in Python, using the cilpy 
+    library. 
+
+\subsection{Standard Particle Swarm Optimisation}
+    The Canonical PSO algorithm acts as the baseline in this experiment. The baseline follows the standardised formulation~\cite{kennedy1995} 
+    and uniform random initialisation pattern defined in Algorithm \ref{alg:canonical_pso}, ensuring a standard benchmark 
+    providing a baseline to measure more advanced scaling methods.
+
+\subsection{Stochastic Scaling Particle Swarm Optimisation}
+    In the Canonical PSO, unique random vectors $r_1$ and $r_2$ are applied to every single dimension to encourage diversity 
+    and inject random noise. In high-dimensional problems, however, this independent scaling model actually causes the 
+    swarm to behave erratically, with a high degree of roaming. To mitigate this, the dimensions for the swarm are randomly partitioned into $k$ 
+    sub groups, a technique known as Stochastic Scaling~\cite{oldewage2019}. 
+
+    During every iteration, all dimensions are 
+    randomly shuffled into $k$ equal-sized groups, where a single $r_1$ and $r_2$ value is then drawn and multiplied 
+    with every dimension within its respective group. The value of $k$ is not static; the value starts at one for iteration zero and increases linearly 
+    up to the maximum dimensionality $D$.  
+
+\subsection{Subspace Initialisation Particle Swarm Optimisation}
+    Particles are uniformly initialised over the entire search space in the Canonical PSO, in an attempt to acquire a broad understanding of the entire
+    landscape. Unfortunately, in high-dimensional spaces, this initialisation model leads to chaotic velocity explosion, causing particles to overshoot desirable regions and bounce 
+    off boundary walls. Subspace Initialisation attempts to counter this effect by modifying how the swarm particles are initially distributed, severely 
+    constricting the swarms starting positions to a heavily constrained area. The algorithm calculates the geometric center of the search space, and 
+    calculates a one-dimensional line that passes directly through the origin. The swarm is then placed all along this line with the initial velocities of the particles 
+    set to zero. By initialising the swarm in this manner the algorithm promotes fine-grained exploitation and mitigates 
+    velocity explosion, before the particles begin to fan out and explore wider spaces~\cite{vanzyl2015}. 
+
+\subsection{Hybrid Particle Swarm Optimisation}
+    The Hybrid PSO, as seen in Algorithm \ref{alg:hybrid_pso}, combines both aforementioned scaling techniques for LSOPs into a single algorithmic structure. The goal of the hybrid model is to harness the 
+    benefits of the structured starting positions of Subspace Initialisation to mitigate velocity explosion at the start, with the dynamic and randomised 
+    sub-group velocity updates of Stochastic Scaling~\cite{oldewage2019,vanzyl2015}. This combination controls particle roaming as well as massive step sizes throughout the experiment. 
+    
+    The swarm is initially seeded entirely using the Subspace approach, providing a structural exploration footing. Then, during the iterative 
+    loops, the velocity equations are driven entirely by the linearly scaling $k$-group dimensionality of the Stochastic model. It was hypothesised that 
+    the hybrid structure will outperform both independent algorithms tested individually. 
+
+    \begin{algorithm}
+    \caption{Hybrid Particle Swarm Optimisation (Subspace Initialisation + Stochastic Scaling)}
+    \label{alg:hybrid_pso}
+    \begin{algorithmic}[1]
+    \STATE \textbf{Phase 1: Subspace Initialisation}
+    \STATE Calculate the geometric center $C$ of the search space bounds
+    \STATE Generate an orthonormal seed vector $d$ via Modified Gram-Schmidt
+    \FOR{each particle $i \in \{1, \dots, N\}$}
+        \STATE Generate position $p_1$ along the line $p = t \cdot d + C$ (with margin)
+        \STATE Generate position $p_2$ along the line $p = t \cdot d + C$ (strict bounds)
+        \IF{$f(p_2) < f(p_1)$}
+            \STATE Personal best $y_i \gets p_2$, Initial position $x_i \gets p_1$
+        \ELSE
+            \STATE Personal best $y_i \gets p_1$, Initial position $x_i \gets p_2$
+        \ENDIF
+        \STATE Initial velocity $v_i \gets \mathbf{0}$ \COMMENT{Eliminate initial momentum}
+    \ENDFOR
+    \STATE Initialise global best $\hat{y}$
+    \STATE
+    \STATE \textbf{Phase 2: Stochastic Scaling Loop}
+    \FOR{iteration $t = 1$ to $T_{max}$}
+        \STATE Calculate group count $k$ (linearly increasing from $1$ to $D$)
+        \STATE Randomly partition the $D$ dimensions into $k$ groups
+        \FOR{each group $g \in \{1, \dots, k\}$}
+            \STATE Draw shared group scalars $r_{1g} \sim U(0,1)$ and $r_{2g} \sim U(0,1)$
+        \ENDFOR
+        \FOR{each particle $i \in \{1, \dots, N\}$}
+            \FOR{each dimension $d \in \{1, \dots, D\}$}
+                \STATE Let $g$ be the specific group containing dimension $d$
+                \STATE $v_{id} \gets w v_{id} + c_1 r_{1g} (y_{id} - x_{id}) + c_2 r_{2g} (\hat{y}_d - x_{id})$
+                \STATE $x_{id} \gets x_{id} + v_{id}$
+                \STATE Clamp $x_{id}$ to search space bounds
+            \ENDFOR
+            \STATE Evaluate $f(x_i)$ and update personal best $y_i$
+        \ENDFOR
+        \STATE Update global best $\hat{y}$ if necessary
+    \ENDFOR
+    \end{algorithmic}
+    \end{algorithm}
+
+\section{Empirical Procedure}
+    To evaluate the algorithms, the experimental setup was designed to stress test the Particle Swarm Optimisation 
+    variants against increasingly large search spaces to capture how algorithmic performance degenerates or improves with dimensionality. 
+
+\subsection{Benchmark Functions}
+    The capability of the algorithm variants was tested against five classic benchmarking optimisation functions, consisting of both 
+    unimodal and multi-modal landscapes. The functions were evaluated across dimensions ($D$) $100$, $500$, and $1000$, and the specific character domains 
+    were as follows:
+    
+    \begin{itemize}
+        \item \textbf{Sphere}: A smooth, unimodal, strongly convex landscape. Search domain: $[-100.0, 100.0]^D$.
+        \item \textbf{Elliptic}: A highly ill-conditioned function, representing stretched topologies. Search domain: $[-100.0, 100.0]^D$.
+        \item \textbf{Rastrigin}: A highly multi-modal function containing numerous periodic local minima. Search domain: $[-5.12, 5.12]^D$.
+        \item \textbf{Rosenbrock}: A non-convex, narrow "valley" topology testing local minima avoidance. Search domain: $[-30.0, 30.0]^D$.
+        \item \textbf{Schwefel 1.2}: A deeply non-separable unimodal function. Search domain: $[-100.0, 100.0]^D$.
+    \end{itemize}
+
+\subsection{Experimental Parameters}
+    Fairness across all algorithms was strictly maintained. Every algorithm executed for exactly $30$ independent runs to ensure robust 
+    averages. Each single run was strictly terminated after $5000$ iterations. 
+    The swarm size was tightly constrained to $30$ particles, the inertia weight ($w$) was set to $0.729844$, and both the 
+    cognitive ($c_1$) and social ($c_2$) acceleration coefficients were defined equally as $1.49618$.
+    These specific parameters were selected and are based on the constriction 
+    factor of Clerc and Kennedy \cite{kennedy1995}. The parameters are proven to guarantee convergent trajectory behaviour and prevent systemic 
+    velocity explosion.
+    Because standard baseline parameters across every algorithm were used, any performance discrepancies measured are attributed to the 
+    underlying algorithm architecture.
+
+\subsection{Evaluation Metrics}
+    To determine the efficiency and accuracy of the underlying architectures, final fitness values across all benchmarking functions were logged 
+    for all $30$ independent runs. The \textbf{Mean Error} and \textbf{Standard Deviation} are reported under tabular conditions in Table \ref{tab:results}.
+    
+    Additionally, logarithmic convergence profiles plotting the generation sequence against the global best fitness evaluations are provided to 
+    visually represent optimisation speed and trajectory stagnation characteristics over time.
+
+\begin{table*}[htbp]
+\centering
+\caption{Mean Best Fitness and Standard Deviation over 30 Independent Runs}
+\label{tab:results}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Function} & \textbf{$D$} & \textbf{Canonical PSO} & \textbf{Stochastic Scaling} & \textbf{Subspace Init} & \textbf{Hybrid PSO} \\
+\midrule
+\multirow{3}{*}{\textbf{Sphere}} & 100 & 1.43e+04 $\pm$ 8.98e+03 & 3.33e+02 $\pm$ 1.83e+03 & 7.55e-08 $\pm$ 2.93e-07 & \textbf{2.73e-11 $\pm$ 1.44e-10} \\
+ & 500 & 2.82e+05 $\pm$ 3.86e+04 & 2.23e+04 $\pm$ 7.48e+03 & 1.81e+01 $\pm$ 3.19e+01 & \textbf{4.40e-01 $\pm$ 7.48e-01} \\
+ & 1000 & 1.02e+06 $\pm$ 6.98e+04 & 1.56e+05 $\pm$ 3.11e+04 & 5.34e+01 $\pm$ 9.31e+01 & \textbf{4.98e+00 $\pm$ 6.43e+00} \\
+\midrule
+\multirow{3}{*}{\textbf{Elliptic}} & 100 & 8.59e+08 $\pm$ 5.15e+08 & 1.99e+07 $\pm$ 6.11e+07 & 2.54e-04 $\pm$ 9.82e-04 & \textbf{1.38e-09 $\pm$ 4.91e-09} \\
+ & 500 & 1.31e+10 $\pm$ 3.99e+09 & 3.78e+08 $\pm$ 1.89e+08 & 2.89e+05 $\pm$ 8.77e+05 & \textbf{4.94e+03 $\pm$ 8.96e+03} \\
+ & 1000 & 3.29e+10 $\pm$ 6.32e+09 & 2.89e+09 $\pm$ 5.75e+08 & 1.58e+06 $\pm$ 2.37e+06 & \textbf{2.52e+05 $\pm$ 4.14e+05} \\
+\midrule
+\multirow{3}{*}{\textbf{Rosenbrock}} & 100 & 2.40e+07 $\pm$ 4.28e+07 & 2.01e+02 $\pm$ 5.67e+01 & 8.89e+01 $\pm$ 1.93e+00 & \textbf{8.73e+01 $\pm$ 9.90e-01} \\
+ & 500 & 1.23e+09 $\pm$ 2.69e+08 & 7.65e+06 $\pm$ 3.06e+06 & 6.04e+02 $\pm$ 2.87e+02 & \textbf{4.99e+02 $\pm$ 1.16e+01} \\
+ & 1000 & 4.44e+09 $\pm$ 4.63e+08 & 8.52e+07 $\pm$ 3.33e+07 & 1.92e+03 $\pm$ 2.06e+03 & \textbf{1.03e+03 $\pm$ 8.94e+01} \\
+\midrule
+\multirow{3}{*}{\textbf{Rastrigin}} & 100 & 6.21e+02 $\pm$ 8.48e+01 & 1.88e+02 $\pm$ 3.67e+01 & 6.30e-01 $\pm$ 2.42e+00 & \textbf{8.69e-09 $\pm$ 2.45e-08} \\
+ & 500 & 3.96e+03 $\pm$ 1.64e+02 & 1.58e+03 $\pm$ 1.46e+02 & 1.02e+01 $\pm$ 2.36e+01 & \textbf{3.06e-01 $\pm$ 4.75e-01} \\
+ & 1000 & 9.49e+03 $\pm$ 2.30e+02 & 5.10e+03 $\pm$ 2.66e+02 & 2.77e+01 $\pm$ 3.79e+01 & \textbf{6.20e+00 $\pm$ 1.97e+01} \\
+\midrule
+\multirow{3}{*}{\textbf{Schwefel12}} & 100 & 8.93e+04 $\pm$ 4.32e+04 & 1.02e+04 $\pm$ 1.38e+04 & 3.94e+00 $\pm$ 6.35e+00 & \textbf{1.65e-03 $\pm$ 7.03e-03} \\
+ & 500 & 1.77e+06 $\pm$ 3.79e+05 & 7.22e+05 $\pm$ 2.69e+05 & 1.77e+03 $\pm$ 3.86e+03 & \textbf{7.61e+01 $\pm$ 1.70e+02} \\
+ & 1000 & 6.89e+06 $\pm$ 9.79e+05 & 3.07e+06 $\pm$ 9.26e+05 & 7.73e+03 $\pm$ 2.47e+04 & \textbf{2.67e+02 $\pm$ 4.08e+02} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
+\section{Research Results}
+This section presents the empirical findings of the study. First, convergence behaviours 
+and structural biases are analysed. Following this, a specific note on the Rosenbrock anomaly is discussed.
+
+\subsection{Convergence Behaviours and Algorithmic Structural Bias}
+The convergence profiles for $D=1000$ across the benchmark functions are presented in Figures \ref{fig:sphere1000} 
+through \ref{fig:rosenbrock1000}. Across the Sphere, Elliptic, Rastrigin, and Schwefel 1.2 landscapes, a consistent 
+performance hierarchy emerges.
+
+The Canonical PSO consistently exhibited the poorest performance. Driven by independent, per-dimension random 
+initialisation, the Canonical swarm suffers from severe velocity explosion in high-dimensional spaces, causing 
+particles to rapidly expand the search radius of the particles and waste evaluations on out-of-bounds roaming. 
+
+The purely Stochastic Scaling PSO successfully dampens this velocity explosion through dimensional 
+coupling, keeping the swarm stable. However, the stochastic scaling algorithm plateaus early in the search process. Because the initial positions of the stochastic scaling swarm 
+are scattered uniformly at random, the coupled velocity updates restrict the reachable space of the swarm, 
+preventing the swarm from navigating to the global optimum from a distant starting point. 
+
+The Subspace Initialisation PSO bypasses the initial velocity explosion by seeding the swarm entirely along a 
+one-dimensional line passing through the center of the bounds. It is important to note the global optima of these standard benchmark 
+functions lie exactly at the origin. Therefore, Subspace 
+Initialisation effectively drops the swarm precisely on the target landscape at Iteration 0, providing a massive, 
+head-start. However, because the algorithm subsequently reverts to standard Canonical PSO velocity updates, 
+the subspace initialisation algorithm eventually succumbs to high-dimensional chaos and struggles to fine-tune the exploitation of the swarm.
+
+The \textbf{Hybrid PSO} heavily dominates these four benchmarks, but the superiority of the hybrid model is not solely due to this 
+initialisation advantage. While the hybrid PSO shares the exact same origin-drop advantage as the Subspace algorithm, the Hybrid 
+immediately transitions into Stochastic Scaling for the iterative velocity updates. This mechanism actively controls 
+particle momentum, preventing the swarm from exploding off the initial subspace line into chaotic jitter. This 
+biased starting position with damped velocity mechanics results in a 
+staircase convergence, allowing the swarm to converge 
+significantly deeper into the local minima than pure Subspace Initialisation.
+
+\begin{figure}[htbp]
+    \centering
+ 
+    \caption{Convergence Profile for Sphere ($D = 1000$)}
+    \label{fig:sphere1000}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+  
+    \caption{Convergence Profile for Elliptic ($D = 1000$)}
+    \label{fig:elliptic1000}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+ 
+    \caption{Convergence Profile for Schwefel 1.2 ($D = 1000$)}
+    \label{fig:schwefel1000}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+   
+    \caption{Convergence Profile for Rastrigin ($D = 1000$)}
+    \label{fig:rastrigin1000}
+\end{figure}
+
+\subsection*{Note on the Rosenbrock Anomaly}
+
+While the Hybrid PSO dominates symmetrically centered topologies, the algorithm immediately stagnates at roughly $10^3$ on the 
+Rosenbrock benchmark as illustrated in Figure \ref{fig:rosenbrock1000}. This stagnation occurs due to how the algorithm interacts with the notoriously flat parabolic valley of the Rosenbrock function. Subspace Initialisation forces the swarm to start at the origin $[0, \dots, 0]$ with 
+zero initial velocity. Trapped on this flat valley floor without initial momentum, and heavily restricted by the 
+dampening of Stochastic Scaling, the particles cannot generate the velocity required to navigate toward the global 
+minimum at $[1, \dots, 1]$. This anomaly highlights a critical trade-off: mechanisms to prevent velocity 
+explosions on steep topologies actively hinder exploration on flat-valley landscapes.
+
+\begin{figure}[htbp]
+    \centering
+  
+    \caption{Convergence Profile for Rosenbrock ($D = 1000$)}
+    \label{fig:rosenbrock1000}
+\end{figure}
+
+\section{Conclusion}
+The primary objective of this study was to evaluate strategies for mitigating the curse of dimensionality in large scale 
+optimisation problems (LSOPs). A hybrid particle swarm optimisation (HPSO) algorithm was developed, integrating 
+Subspace Initialisation and Stochastic Scaling. The performance of this hybrid was benchmarked against 
+Canonical PSO and the independent constituent algorithms of the hybrid across five landscapes at dimensionalities 
+up to $D=1000$.
+
+The empirical results supported the initial hypothesis for the majority of the tested landscapes. By combining 
+the geometrically constrained, zero velocity starting conditions of Subspace Initialisation with the  
+coupled velocity dampening of Stochastic Scaling, the Hybrid PSO successfully prevented high-dimensional velocity 
+explosion and excessive particle roaming. The Hybrid PSO outperformed the Canonical, 
+purely Stochastic, and purely Subspace swarms on the Sphere, Elliptic, Rastrigin, and Schwefel 1.2 benchmarks, 
+demonstrating stable convergence.
+
+However, this investigation also identified a critical algorithmic limitation through the Rosenbrock anomaly. The 
+complete stagnation of the Hybrid swarm on the Rosenbrock function proved that while eliminating initial momentum is 
+highly beneficial for symmetrically steep functions, this elimination is actively detrimental on flat-valley landscapes 
+where initial momentum is strictly required for traversal. 
+
+Conducting this research highlighted that algorithmic performance in LSOPs cannot be evaluated purely on final 
+fitness metrics. An understanding of how the mechanics of an algorithm interact with the specific spatial landscape of a problem is 
+also important. 
+
+Future work should address the initialisation bias present in this study by benchmarking the Hybrid 
+algorithm against "shifted" landscape variants, where the global optimum is intentionally displaced from the geometric 
+center of the search space. Future studies should investigate adaptive initialisation strategies to 
+detect flat-valley landscapes in order to inject necessary initial momentum to address stagnation 
+vulnerabilities observed in the Rosenbrock landscape.
+
+\appendices
+
+\section{Acronyms}
+\begin{itemize}
+    \item HPSO: Hybrid Particle Swarm Optimisation
+    \item LSOP: Large Scale Optimisation Problem
+    \item PSO: Particle Swarm Optimisation
+\end{itemize}
+
+\section{Symbols}
+\begin{itemize}
+    \item $c_1$: Cognitive acceleration coefficient
+    \item $c_2$: Social acceleration coefficient
+    \item $C$: Geometric center of the search space bounds
+    \item $d$: Orthonormal seed vector
+    \item $D$: Dimensionality of the search space
+    \item $f(x)$: Objective fitness function evaluated at point $x$
+    \item $Gbest$ / $\hat{y}$: Global best position of the swarm
+    \item $k$: Number of stochastic scaling groups
+    \item $N$: Total number of particles in the swarm
+    \item $Pbest_i$ / $y_i$: Personal best position of particle $i$
+    \item $r_1, r_2$: Stochastic random vectors drawn from $U(0,1)$
+    \item $t$: Current iteration number
+    \item $V_i$ / $v_i$: Velocity vector of particle $i$
+    \item $w$: Inertia weight
+    \item $X_i$ / $x_i$: Position vector of particle $i$
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{kennedy1995}
+J. Kennedy and R. C. Eberhart, ``Particle swarm optimization,'' in \textit{Proceedings of the International Conference on Neural Networks}, 1995, pp. 1942--1948.
+
+\bibitem{oldewage2019}
+E. T. Oldewage, C. W. Cleghorn, and A. P. Engelbrecht, ``Solving large scale optimisation problems using particle swarm optimisation,'' in \textit{Proceedings of the IEEE Symposium Series on Computational Intelligence}, 2019, pp. 1--8.
+
+\bibitem{vanzyl2015}
+E. T. Van Zyl and A. P. Engelbrecht, ``A subspace-based method for PSO initialization,'' in \textit{Proceedings of the IEEE Symposium Series on Computational Intelligence}, 2015, pp. 1877--1883.
+
+\end{thebibliography}
+
+\end{document}
