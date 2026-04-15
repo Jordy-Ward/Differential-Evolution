@@ -124,3 +124,79 @@ class Michalewicz(Problem[List[float], float]):
 
     def is_multi_objective(self) -> bool:
         return False
+
+
+class Levy(Problem[List[float], float]):
+    """The Levy Function.
+    Highly multimodal with irregular trap placements.
+    Global optimum is f(x) = 0 at x = (1, ..., 1).
+    """
+    def __init__(self, dimension: int = 30):
+        lower_bounds = [-10.0] * dimension
+        upper_bounds = [10.0] * dimension
+        super().__init__(dimension=dimension, bounds=(lower_bounds, upper_bounds), name="Levy")
+
+    def evaluate(self, solution: List[float]) -> Evaluation[float]:
+        # Transformation: w_i = 1 + (x_i - 1)/4
+        w = [1.0 + (x - 1.0) / 4.0 for x in solution]
+        
+        term1 = math.sin(math.pi * w[0])**2
+        term3 = (w[-1] - 1.0)**2 * (1.0 + math.sin(2.0 * math.pi * w[-1])**2)
+        
+        term2 = 0.0
+        for i in range(self.dimension - 1):
+            term2 += (w[i] - 1.0)**2 * (1.0 + 10.0 * math.sin(math.pi * w[i] + 1.0)**2)
+            
+        fitness = term1 + term2 + term3
+        return Evaluation(fitness=fitness, constraints_inequality=[])
+
+    def is_dynamic(self) -> Tuple[bool, bool]:
+        return (False, False)
+
+    def is_multi_objective(self) -> bool:
+        return False
+
+
+class Salomon(Problem[List[float], float]):
+    """The Salomon Function.
+    Features concentric hypersphere local minima rings. 
+    Global optimum is f(x) = 0 at x = (0, ..., 0).
+    """
+    def __init__(self, dimension: int = 30):
+        lower_bounds = [-100.0] * dimension
+        upper_bounds = [100.0] * dimension
+        super().__init__(dimension=dimension, bounds=(lower_bounds, upper_bounds), name="Salomon")
+
+    def evaluate(self, solution: List[float]) -> Evaluation[float]:
+        sum_sq = sum(x**2 for x in solution)
+        sqrt_sum_sq = math.sqrt(sum_sq)
+        
+        fitness = 1.0 - math.cos(2.0 * math.pi * sqrt_sum_sq) + 0.1 * sqrt_sum_sq
+        return Evaluation(fitness=fitness, constraints_inequality=[])
+
+    def is_dynamic(self) -> Tuple[bool, bool]:
+        return (False, False)
+
+    def is_multi_objective(self) -> bool:
+        return False
+
+
+class Alpine1(Problem[List[float], float]):
+    """The Alpine No. 1 Function.
+    Separable but highly rugged with sharp 'V-shaped' local minima.
+    Global optimum is f(x) = 0 at x = (0, ..., 0).
+    """
+    def __init__(self, dimension: int = 30):
+        lower_bounds = [-10.0] * dimension
+        upper_bounds = [10.0] * dimension
+        super().__init__(dimension=dimension, bounds=(lower_bounds, upper_bounds), name="Alpine1")
+
+    def evaluate(self, solution: List[float]) -> Evaluation[float]:
+        fitness = sum(abs(x * math.sin(x) + 0.1 * x) for x in solution)
+        return Evaluation(fitness=fitness, constraints_inequality=[])
+
+    def is_dynamic(self) -> Tuple[bool, bool]:
+        return (False, False)
+
+    def is_multi_objective(self) -> bool:
+        return False
