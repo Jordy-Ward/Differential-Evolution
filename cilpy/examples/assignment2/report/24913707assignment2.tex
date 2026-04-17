@@ -68,112 +68,288 @@ Stellenbosch, South Africa \\
 
 \section{Background}
 
-    Continuous optimisation involves finding the global minimum or maximum of an objective function within a multi-dimensional search space. These geometric landscapes are multi-modal and can contain many local optima that act as traps for traditional gradient-based search methods. To overcome this challenge, stochastic metaheuristic algorithms are deployed to the landscapes. These algorithms must balance exploration (searching broadly across the entire landscape) with exploitation (narrowing the search locally to fine tune a solution) in order to successfully converge on the true global solution.  
+    Continuous optimisation involves finding the global minimum or maximum of an objective function within a multi-dimensional search 
+    space. These geometric landscapes are multi-modal and can contain many local optima that act as traps for traditional gradient-based 
+    search methods. To overcome this challenge, stochastic metaheuristic algorithms are deployed to the landscapes. These algorithms must balance exploration (searching broadly across the entire landscape) with exploitation (narrowing the search locally to fine tune a solution) in order to successfully converge on the true global solution.  
 
-    Differential Evolution (DE) is a prominent subset of Evolutionary Algorithms (EA) explicitly developed to solve continuous-valued optimisation problems.  Like traditional EA's, DE utilises a population of candidate solutions that evolve over successive generations. However, unlike other EA's that apply selection before mutation, DE performs the mutation of a random vector before applying selection. The mutation process itself also differs in the manner that mutation step sizes are not sampled from a prior known probability distribution function but rather, the mutation step size is influenced by the differences between individuals of the current population. 
+    Differential Evolution (DE) is a prominent subset of Evolutionary Algorithms (EA) explicitly developed to solve continuous-valued 
+    optimisation problems.  Like traditional EA's, DE utilises a population of candidate solutions that evolve over successive 
+    generations. However, unlike other EA's that apply selection before mutation, DE performs the mutation of a random vector 
+    before applying selection. The mutation process itself also differs in the manner that mutation step sizes are not sampled 
+    from a prior known probability distribution function but rather, the mutation step size is influenced by the differences between 
+    individuals of the current population. 
 
-    The canonical DE algorithm, frequently denoted by the mutation and crossover strategy DE/rand/1/bin, operates through a continuous loop of four primary phases: Initialisation, Mutation, Recombination, and Selection. During mutation, a trial vector is created by adding together a weighted difference of randomly selected population vectors to the target vector. Recombination then mixes the parameters of the trial vector and the target vector to create offspring vectors. Finally an elitist selection mechanism compares the target vector to the spawned offspring vector, keeping strictly the candidate that yields the better fitness. The high level execution of a standard DE algorithm is illustrated in Algorithm 1. 
+    The canonical DE algorithm, frequently denoted by the mutation and crossover strategy DE/rand/1/bin, operates through a continuous 
+    loop of four primary phases: Initialisation, Mutation, Recombination, and Selection. During mutation, a trial vector is created by 
+    adding together a weighted difference of randomly selected population vectors to the target vector. Recombination then mixes the 
+    parameters of the trial vector and the target vector to create offspring vectors. Finally an elitist selection mechanism compares 
+    the target vector to the spawned offspring vector, keeping strictly the candidate that yields the better fitness. The high level 
+    execution of a standard DE algorithm is illustrated in Algorithm 1. 
 
     \begin{algorithm}[H]
-    \caption{Algorithm 1: Standard Differential Evolution}
-    \label{alg:canonical_de}
-    \begin{algorithmic}[1] % adds line numbers
-    \STATE \textbf{Initialise} population of individuals randomly within the bounds
-    \WHILE{termination condition is not met}
-        \FOR{each target vector in the population}
-            \STATE Select distinct random vectors from the population
-            \STATE Create trial vector using vector differences and scale factor (F)
-            \STATE Create an offspring vector by combining parameters of the trial vector and the target vector based on crossover rate (CR)
-            \STATE Evaluate the fitness of the trial vector
-            \IF{offspring vector fitness <= target vector fitness}
-                \STATE Replace target vector with offspring vector in next generation
-            \ENDIF
-        \ENDFOR
-    \ENDWHILE
-    \end{algorithmic}
-    \end{algorithm}
+\caption{Standard Differential Evolution (DE)}
+\label{alg:canonical_de}
+\begin{algorithmic}[1] 
+\STATE \textbf{Initialize} population $P = \{\mathbf{x}_1, \dots, \mathbf{x}_{NP}\}$ randomly within search bounds
+\WHILE{termination condition is not met}
+    \FOR{$i = 1$ to $NP$}
+        \STATE \textit{// Mutation}
+        \STATE Select distinct random indices from the population, excluding $i$
+        \STATE Generate a trial vector $\mathbf{v}_i$ using vector differences and scale factor $F$
+        
+        \STATE \textit{// Recombination}
+        \STATE Generate an offspring vector $\mathbf{u}_i$ by recombining the trial vector $\mathbf{v}_i$ and target $\mathbf{x}_i$ based on crossover rate $CR$
+        
+        \STATE \textit{// Selection}
+        \STATE Evaluate the fitness of the offspring $f(\mathbf{u}_i)$
+        \IF{$f(\mathbf{u}_i) \leq f(\mathbf{x}_i)$}
+            \STATE $\mathbf{x}_i^{next} \gets \mathbf{u}_i$
+        \ELSE
+            \STATE $\mathbf{x}_i^{next} \gets \mathbf{x}_i$
+        \ENDIF
+    \ENDFOR
+    \STATE $P \gets P^{next}$
+\ENDWHILE
+\end{algorithmic}
+\end{algorithm}
 
-    The recombnation phase is critical for injecting diversity and guiding the search geometry. In standard DE this is achieved using discrete operators like binomial or exponential crossover. These algorithms build offspring vectors by independently swapping exact parameter values along the search axes. This approach is coordinate dependent and struggles on rotated or non-separable landscapes. To address this, extensive literature within the domain of Real-Coded Genetic Algorithms (RCGAs) has explored continuous blending operators. Instead of swapping axis coordinates, these continuous operators create offspring by exploring the mathematical volume or geometry between parents. By utilizing techniques like arithmetic interpolation, simplex expansions, or Gaussian probability distributions, the geometric space between target vectors can be explored in much finer detial.
+    The recombnation phase is critical for injecting diversity and guiding the search geometry. In standard DE this is achieved using 
+    discrete operators like binomial or exponential crossover. These algorithms build offspring vectors by independently swapping 
+    exact parameter values along the search axes. This approach is coordinate dependent and struggles on rotated or non-separable 
+    landscapes. To address this, extensive literature within the domain of Real-Coded Genetic Algorithms (RCGAs) has explored 
+    continuous blending operators. Instead of swapping axis coordinates, these continuous operators create offspring by exploring 
+    the mathematical volume or geometry between parents. By utilizing techniques like arithmetic interpolation, simplex expansions, 
+    or Gaussian probability distributions, the geometric space between target vectors can be explored in much finer detial.
 
 
 \section{Methodology}
-    This section details the algorithm architectures to test against the chosen 
-    Large Scale Optimisation Problems. The algorithms were implemented in Python, using the cilpy 
-    library. 
 
-\subsection{Standard Particle Swarm Optimisation}
-    The Canonical PSO algorithm acts as the baseline in this experiment. The baseline follows the standardised formulation~\cite{kennedy1995} 
-    and uniform random initialisation pattern defined in Algorithm \ref{alg:canonical_pso}, ensuring a standard benchmark 
-    providing a baseline to measure more advanced scaling methods.
+To investigate the performance differences between discrete and continuous blending recombination, a canonical DE/rand/2 
+Differential Evolution framework was implemented in Python. The standard binomial crossover was established as the 
+baseline solver. Subsequently, four distinct continuous blending crossover operators were implemented by exclusively 
+modifying the recombination phase of the algorithm. The mutation and selection methods were left constant.
 
-\subsection{Stochastic Scaling Particle Swarm Optimisation}
-    In the Canonical PSO, unique random vectors $r_1$ and $r_2$ are applied to every single dimension to encourage diversity 
-    and inject random noise. In high-dimensional problems, however, this independent scaling model actually causes the 
-    swarm to behave erratically, with a high degree of roaming. To mitigate this, the dimensions for the swarm are randomly partitioned into $k$ 
-    sub groups, a technique known as Stochastic Scaling~\cite{oldewage2019}. 
-
-    During every iteration, all dimensions are 
-    randomly shuffled into $k$ equal-sized groups, where a single $r_1$ and $r_2$ value is then drawn and multiplied 
-    with every dimension within its respective group. The value of $k$ is not static; the value starts at one for iteration zero and increases linearly 
-    up to the maximum dimensionality $D$.  
-
-\subsection{Subspace Initialisation Particle Swarm Optimisation}
-    Particles are uniformly initialised over the entire search space in the Canonical PSO, in an attempt to acquire a broad understanding of the entire
-    landscape. Unfortunately, in high-dimensional spaces, this initialisation model leads to chaotic velocity explosion, causing particles to overshoot desirable regions and bounce 
-    off boundary walls. Subspace Initialisation attempts to counter this effect by modifying how the swarm particles are initially distributed, severely 
-    constricting the swarms starting positions to a heavily constrained area. The algorithm calculates the geometric center of the search space, and 
-    calculates a one-dimensional line that passes directly through the origin. The swarm is then placed all along this line with the initial velocities of the particles 
-    set to zero. By initialising the swarm in this manner the algorithm promotes fine-grained exploitation and mitigates 
-    velocity explosion, before the particles begin to fan out and explore wider spaces~\cite{vanzyl2015}. 
-
-\subsection{Hybrid Particle Swarm Optimisation}
-    The Hybrid PSO, as seen in Algorithm \ref{alg:hybrid_pso}, combines both aforementioned scaling techniques for LSOPs into a single algorithmic structure. The goal of the hybrid model is to harness the 
-    benefits of the structured starting positions of Subspace Initialisation to mitigate velocity explosion at the start, with the dynamic and randomised 
-    sub-group velocity updates of Stochastic Scaling~\cite{oldewage2019,vanzyl2015}. This combination controls particle roaming as well as massive step sizes throughout the experiment. 
+\subsection{Baseline: Binomial Crossover (DE/bin)}
+The control algorithm utilized the standard discrete binomial crossover. For a given target vector $\mathbf{x}_i(t)$ and 
+a mutant donor vector $\mathbf{v}_i(t)$, the trial vector $\mathbf{u}_i(t)$ was constructed by independently evaluating 
+a uniform random number against the crossover rate ($CR$) for each dimension $j$. To prevent stagnation, a randomly 
+selected index $j_{rand}$ was guaranteed to inherit from the donor vector.
     
-    The swarm is initially seeded entirely using the Subspace approach, providing a structural exploration footing. Then, during the iterative 
-    loops, the velocity equations are driven entirely by the linearly scaling $k$-group dimensionality of the Stochastic model. It was hypothesised that 
-    the hybrid structure will outperform both independent algorithms tested individually. 
+\begin{algorithm}[H]
+\caption{Binomial Crossover (DE/bin)}
+\label{alg:binomial_crossover}
+\begin{algorithmic}[1] 
+\REQUIRE Target vector $\mathbf{x}_i$, Trial vector $\mathbf{v}_i$, Crossover Rate $CR$, Dimension $D$
+\ENSURE Off spring vector $\mathbf{u}_i$
+\STATE $j_{rand} \gets \text{random integer in } [1, D]$
+\FOR{$j = 1$ to $D$}
+    \STATE $r \gets \text{random uniform number in } [0, 1]$
+    \IF{$r < CR$ \OR $j = j_{rand}$}
+        \STATE $u_{i,j} \gets v_{i,j}$  \textit{ // Inherit from trial vector}
+    \ELSE
+        \STATE $u_{i,j} \gets x_{i,j}$  \textit{ // Inherit from target}
+    \ENDIF
+\ENDFOR
+\RETURN $\mathbf{u}_i$
+\end{algorithmic}
+\end{algorithm}
 
-    \begin{algorithm}
-    \caption{Hybrid Particle Swarm Optimisation (Subspace Initialisation + Stochastic Scaling)}
-    \label{alg:hybrid_pso}
-    \begin{algorithmic}[1]
-    \STATE \textbf{Phase 1: Subspace Initialisation}
-    \STATE Calculate the geometric center $C$ of the search space bounds
-    \STATE Generate an orthonormal seed vector $d$ via Modified Gram-Schmidt
-    \FOR{each particle $i \in \{1, \dots, N\}$}
-        \STATE Generate position $p_1$ along the line $p = t \cdot d + C$ (with margin)
-        \STATE Generate position $p_2$ along the line $p = t \cdot d + C$ (strict bounds)
-        \IF{$f(p_2) < f(p_1)$}
-            \STATE Personal best $y_i \gets p_2$, Initial position $x_i \gets p_1$
-        \ELSE
-            \STATE Personal best $y_i \gets p_1$, Initial position $x_i \gets p_2$
-        \ENDIF
-        \STATE Initial velocity $v_i \gets \mathbf{0}$ \COMMENT{Eliminate initial momentum}
-    \ENDFOR
-    \STATE Initialise global best $\hat{y}$
-    \STATE
-    \STATE \textbf{Phase 2: Stochastic Scaling Loop}
-    \FOR{iteration $t = 1$ to $T_{max}$}
-        \STATE Calculate group count $k$ (linearly increasing from $1$ to $D$)
-        \STATE Randomly partition the $D$ dimensions into $k$ groups
-        \FOR{each group $g \in \{1, \dots, k\}$}
-            \STATE Draw shared group scalars $r_{1g} \sim U(0,1)$ and $r_{2g} \sim U(0,1)$
-        \ENDFOR
-        \FOR{each particle $i \in \{1, \dots, N\}$}
-            \FOR{each dimension $d \in \{1, \dots, D\}$}
-                \STATE Let $g$ be the specific group containing dimension $d$
-                \STATE $v_{id} \gets w v_{id} + c_1 r_{1g} (y_{id} - x_{id}) + c_2 r_{2g} (\hat{y}_d - x_{id})$
-                \STATE $x_{id} \gets x_{id} + v_{id}$
-                \STATE Clamp $x_{id}$ to search space bounds
-            \ENDFOR
-            \STATE Evaluate $f(x_i)$ and update personal best $y_i$
-        \ENDFOR
-        \STATE Update global best $\hat{y}$ if necessary
-    \ENDFOR
-    \end{algorithmic}
-    \end{algorithm}
+\subsection{Uniform Arithmetic Crossover (DE/AX)}
+To implement a highly explorative continuous blend, a Uniform Arithmetic operator was formulated. Unlike standard 
+linear arithmetic crossover which applies a single scalar across all dimensions, this implementation decoupled the 
+blending weights. For every dimension $j$, an independent random scalar $\gamma_j \in [0, 1]$ was sampled:
+\begin{equation}
+u_{ij}(t) = (1 - \gamma_j)x_{ij}(t) + \gamma_j v_{ij}(t)
+\end{equation}
+Geometrically, this guarantees the offspring are sampled uniformly from the multi-dimensional hyper-rectangle bounded 
+by the target and donor vectors.
+
+\begin{algorithm}[H]
+\caption{Uniform Arithmetic Crossover (DE/AX)}
+\label{alg:ax_crossover}
+\begin{algorithmic}[1] 
+\REQUIRE Target vector $\mathbf{x}_i$, Trial vector vector $\mathbf{v}_i$, Dimension $D$
+\ENSURE Offspring vector $\mathbf{u}_i$
+\FOR{$j = 1$ to $D$}
+    \STATE $\gamma_j \gets \text{random uniform number in } [0, 1]$
+    \STATE $u_{i,j} \gets (1 - \gamma_j) \cdot x_{i,j} + \gamma_j \cdot v_{i,j}$
+\ENDFOR
+\RETURN $\mathbf{u}_i$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Simplex Crossover (DE/SPX)}
+The Simplex operator was implemented using $m=3$ parents: the target vector, the donor vector, and a randomly selected 
+third vector from the population. The center of mass $\mathbf{O}$ of these three vertices was calculated, and the 
+simplex was expanded outward using an expansion rate of $\epsilon = \sqrt{3}$. Offspring were uniformly sampled from 
+within this expanded barycentric geometry by generating two random weights ($r_1, r_2$), shown in Figure \ref{fig:spx_viz}. A fold trick was 
+applied (\texttt{if $r_1 + r_2 > 1.0$: $r_1 = 1 - r_1$; $r_2 = 1 - r_2$}) to ensure uniform interior distribution 
+without skewing.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{../plots/SPX.png}
+    \caption{Geometric visualization of the SPX operator, demonstrating outward simplex expansion around the center of mass $\mathbf{O}$ and uniform sampling of offspring within the expanded triangular bounds.}
+    \label{fig:spx_viz}
+\end{figure}
+
+\begin{algorithm}[htbp]
+\caption{Simplex Crossover (DE/SPX)}
+\label{alg:spx_crossover}
+\begin{algorithmic}[1] 
+\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $D$
+\ENSURE Trial vector $\mathbf{u}_i$
+\STATE $m \gets 3$ \textit{ // Number of parents}
+\STATE $\epsilon \gets \sqrt{m}$ \textit{ // Expansion rate for 3 parents}
+
+\STATE \textit{// Calculate the center of mass}
+\FOR{$j = 1$ to $D$}
+    \STATE $O_j \gets (x_{1,j} + x_{2,j} + x_{3,j}) / 3.0$
+\ENDFOR
+
+\STATE \textit{// Calculate the expanded vertices}
+\FOR{$j = 1$ to $D$}
+    \STATE $y_{1,j} \gets O_j + \epsilon \cdot (x_{1,j} - O_j)$
+    \STATE $y_{2,j} \gets O_j + \epsilon \cdot (x_{2,j} - O_j)$
+    \STATE $y_{3,j} \gets O_j + \epsilon \cdot (x_{3,j} - O_j)$
+\ENDFOR
+
+\STATE \textit{// Generate two random weights and uniformly sample inside the triangle}
+\STATE $r_1 \gets \text{random uniform number in } [0, 1]$
+\STATE $r_2 \gets \text{random uniform number in } [0, 1]$
+\IF{$r_1 + r_2 > 1.0$}
+    \STATE $r_1 \gets 1.0 - r_1$
+    \STATE $r_2 \gets 1.0 - r_2$
+\ENDIF
+
+\STATE $w_1 \gets 1.0 - r_1 - r_2$
+\STATE $w_2 \gets r_1$
+\STATE $w_3 \gets r_2$
+
+\STATE \textit{// Assemble child vector using calculated weights}
+\FOR{$j = 1$ to $D$}
+    \STATE $u_{i,j} \gets w_1 \cdot y_{1,j} + w_2 \cdot y_{2,j} + w_3 \cdot y_{3,j}$
+\ENDFOR
+
+\RETURN $\mathbf{u}_i$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Unimodal Normal Distribution Crossover (DE/UNDX)}
+The classic 3-parent UNDX operator was implemented to search the probability space between solutions, as visualized in Figure \ref{fig:undx_viz}. The normal 
+distribution was centered exactly at the midpoint $\mathbf{m}$ between the target and donor vectors, with the primary 
+axis $\mathbf{d}$ defined as the vector connecting them. 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{../plots/UNDX.png}
+    \caption{Geometric visualization of the UNDX parent vectors and the resulting normally distributed offspring cloud stretched along the primary axis $\mathbf{d}$ spanning between the Target (P1) and Donor (P2).}
+    \label{fig:undx_viz}
+\end{figure}
+
+Strictly implementing UNDX requires constructing a full orthonormal basis matrix for the remaining dimensions, 
+an $\mathcal{O}(n^3)$ operation computationally prohibitive for a high-frequency DE loop. To optimize performance, 
+a randomized orthogonal projection shortcut was implemented. A single vector $\mathbf{z}$ consisting of standard 
+Gaussian noise was generated, and its projection onto the primary axis $\mathbf{d}$ was subtracted to yield the 
+purely orthogonal noise component $\mathbf{z}_{orth}$. The offspring vector was constructed as:
+\begin{equation}
+\mathbf{u}_i(t) = \mathbf{m} + \xi\mathbf{d} + \sigma_\eta D \mathbf{z}_{orth}
+\end{equation}
+where primary variance $\xi \sim \mathcal{N}(0, 0.5^2)$, $D$ is the orthogonal distance of the third parent to the 
+primary axis, and orthogonal variance is scaled by $\sigma_\eta = 0.35 / \sqrt{n_{dim}}$.
+
+\begin{algorithm}[htbp]
+\caption{Unimodal Normal Distribution Crossover (DE/UNDX)}
+\label{alg:undx_crossover_mid}
+\begin{algorithmic}[1] 
+\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $D$
+\ENSURE Trial vector $\mathbf{u}_i$
+\STATE $\sigma_\xi \gets 0.5$
+\STATE $\sigma_\eta \gets 0.35 / \sqrt{D}$
+
+\STATE \textit{// 1. Define the primary search axis}
+\STATE $\mathbf{m} \gets \frac{1}{2}(\mathbf{x}_1 + \mathbf{x}_2)$
+\STATE $\mathbf{d} \gets \mathbf{x}_1 - \mathbf{x}_2$
+
+\STATE \textit{// 2. Calculate orthogonal distance $D_{orth}$ from $\mathbf{x}_3$}
+\STATE $\mathbf{v} \gets \mathbf{x}_3 - \mathbf{x}_1$
+\STATE $\mathbf{v}_{proj} \gets \left( \frac{\mathbf{v} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$ \textit{ // Project $\mathbf{v}$ onto the primary axis}
+\STATE $\mathbf{v}_{orth} \gets \mathbf{v} - \mathbf{v}_{proj}$
+\STATE $D_{orth} \gets \|\mathbf{v}_{orth}\|$ \textit{ // Magnitude of the orthogonal component}
+
+\STATE \textit{// 3. Generate orthogonal Gaussian noise vector}
+\STATE $\mathbf{z} \gets$ random vector of length $D$ sampled from $\mathcal{N}(0, 1)$
+\STATE $\mathbf{z}_{proj} \gets \left( \frac{\mathbf{z} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $\mathbf{z}_{orth} \gets \mathbf{z} - \mathbf{z}_{proj}$
+
+\STATE \textit{// 4. Assemble the trial vector}
+\STATE $\xi \gets \text{random number sampled from } \mathcal{N}(0, \sigma_\xi^2)$
+\STATE $\mathbf{u}_i \gets \mathbf{m} + \xi\mathbf{d} + \sigma_\eta \cdot D_{orth} \cdot \mathbf{z}_{orth}$
+
+\RETURN $\mathbf{u}_i$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Parent-Centric Crossover (DE/PCX)}
+To evaluate an exploitative continuous operator, the Generalized PCX algorithm was integrated, as visualized in Figure \ref{fig:pcx_viz}. The collective center 
+of mass $\mathbf{O}$ for the three parents was calculated, and the primary direction vector $\mathbf{d}_i$ was drawn 
+from $\mathbf{O}$ strictly toward the primary parent (the target vector). 
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{../plots/PCX.png}
+    \caption{Geometric visualization of the highly exploitative PCX offspring distribution clustered strictly around the Primary Parent (P1) towards the collective center of mass.}
+    \label{fig:pcx_viz}
+\end{figure}
+
+The average perpendicular distance $\bar{D}$ of the other two parents to this primary axis was computed. Using the 
+identical orthogonal projection shortcut ($\mathbf{z}_{orth}$) developed for UNDX, a Gaussian scatter cloud was 
+generated explicitly centered on the primary parent. The standard deviations for both the primary and orthogonal 
+spreads were fixed at highly exploitative values ($\sigma_\xi = 0.1$, $\sigma_\eta = 0.1$).
+
+\begin{algorithm}[htbp]
+\caption{Parent-Centric Crossover (DE\_PCX)}
+\label{alg:pcx_crossover}
+\begin{algorithmic}[1] 
+\REQUIRE Target vector $\mathbf{x}_1$ (Primary), Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $D$
+\ENSURE Trial vector $\mathbf{u}_i$
+\STATE $\sigma_\xi \gets 0.1$ \textit{ // Highly exploitative primary spread}
+\STATE $\sigma_\eta \gets 0.1$ \textit{ // Highly exploitative orthogonal spread}
+
+\STATE \textit{// 1. Calculate Center of Mass and Primary Axis}
+\STATE $\mathbf{O} \gets \frac{1}{3}(\mathbf{x}_1 + \mathbf{x}_2 + \mathbf{x}_3)$
+\STATE $\mathbf{d} \gets \mathbf{x}_1 - \mathbf{O}$ \textit{ // Direction vector points strictly toward Primary Parent}
+
+\STATE \textit{// 2. Calculate average orthogonal distance $\bar{D}$ of other parents}
+\STATE $\mathbf{v}_2 \gets \mathbf{x}_2 - \mathbf{x}_1$
+\STATE $\mathbf{v}_{2, proj} \gets \left( \frac{\mathbf{v}_2 \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $D_2 \gets \|\mathbf{v}_2 - \mathbf{v}_{2, proj}\|$
+
+\STATE $\mathbf{v}_3 \gets \mathbf{x}_3 - \mathbf{x}_1$
+\STATE $\mathbf{v}_{3, proj} \gets \left( \frac{\mathbf{v}_3 \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $D_3 \gets \|\mathbf{v}_3 - \mathbf{v}_{3, proj}\|$
+
+\STATE $\bar{D} \gets \frac{D_2 + D_3}{2}$ \textit{ // Average perpendicular distance}
+
+\STATE \textit{// 3. Generate orthogonal Gaussian noise vector}
+\STATE $\mathbf{z} \gets$ random vector of length $D$ sampled from $\mathcal{N}(0, 1)$
+\STATE $\mathbf{z}_{proj} \gets \left( \frac{\mathbf{z} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $\mathbf{z}_{orth} \gets \mathbf{z} - \mathbf{z}_{proj}$
+
+\STATE \textit{// 4. Assemble the trial vector (Centered exactly on the Primary Parent)}
+\STATE $\xi \gets \text{random number sampled from } \mathcal{N}(0, \sigma_\xi^2)$
+\STATE $\mathbf{u}_i \gets \mathbf{x}_1 + \xi\mathbf{d} + \sigma_\eta \cdot \bar{D} \cdot \mathbf{z}_{orth}$
+
+\RETURN $\mathbf{u}_i$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Experimental Setup}
+To empirically evaluate the performance of these five operators, a diverse suite of eight 30-dimensional benchmark 
+functions was compiled, representing macro-gradient, deceptive, and highly multi-modal topologies 
+(Ackley, Griewank, Levy, Salomon, Rastrigin, Schwefel, Michalewicz, and Alpine1). The DE parameters were held constant 
+across all solvers with a population size of $NP=100$, mutation factor $F=0.5$, and $CR=0.8$. Each solver was subjected 
+to 30 independent runs per function, capped at a termination criteria of 3,000 iterations to ensure statistical robustness.
 
 \section{Empirical Procedure}
     To evaluate the algorithms, the experimental setup was designed to stress test the Particle Swarm Optimisation 
