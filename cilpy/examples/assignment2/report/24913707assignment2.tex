@@ -34,9 +34,9 @@ Stellenbosch, South Africa \\
 \pagestyle{plain}
 
 \begin{abstract}
-    Differential evolution (DE) algorithms have been developed to solve continuous-valued optimisation problems. Interestingly, the canonical DE algorithm utilises discrete 
-    recombination crossover to build child vectors throughout the life span of the algorithm. Advanced continuous crossover operators are implemented in this report 
-    and tested against eight multi-modal benchmark functions to determine if crossover mechanisms intentionally designed for  
+    Differential evolution (DE) algorithms have been developed to solve continuous-valued optimisation problems. The canonical DE algorithm utilises discrete 
+    recombination crossover to build offspring vectors throughout the life span of the algorithm. Advanced continuous crossover operators are implemented in this report 
+    and tested against eight diverse multi-modal benchmark functions to determine if crossover mechanisms intentionally designed for  
     real-valued representations outperform standard discrete recombination. By specifically implementing blending crossover operators and using  
     the operators in DE algorithms, a significant improvement in continuous optimisation performance and accuracy is hypothesised. Experimental evaluation was performed 
     at 30 dimensions over 30 independent runs for 3000 generations each. Results indicate that continuous blending methods, particularly those utilising expanded barycentric and normal distributions, significantly outperform the discrete baseline on macro-gradient and deceptive landscapes. However, exploitative  parent-centric methods remain vulnerable to premature convergence.  
@@ -50,9 +50,9 @@ Stellenbosch, South Africa \\
     has proven highly successful, the canonical formulation of the algorithm contains a fundamental geometric 
     contradiction when applied to continuous landscapes.
 
-    The standard DE algorithm-such as the widely used DE/rand/2/bin variant-relies on discrete 
+    The standard DE algorithm---such as the widely used DE/rand/2/bin variant---relies on discrete 
     binomial recombination to generate child vectors. Binomial crossover operates by independently swapping exact parameter values between a target vector and a mutated trial vector. While computationally efficient, this discrete swapping mechanism restricts the search trajectory 
-    of the algorithm to a rigid grid, which limits the ability of the algorithm to effectively navigate continuous, non 
+    of the algorithm to a rigid grid, which limits the ability of the algorithm to effectively navigate continuous, non-
     separable landscapes.
 
     To overcome the geometric limitations of discrete recombination, real-valued blending 
@@ -65,24 +65,26 @@ Stellenbosch, South Africa \\
 
     The primary goal of this report is to investigate the efficacy of integrating continuous blending crossover operators into the standard DE algorithm. 
     By replacing the binomial crossover with AX, SPX, UNDX, and PCX this report evaluates whether real-valued recombination outperforms discrete parameter 
-    swapping. The modified algorithms were benchmarked across eight multi-modal, 30-dimensional functions. Experimental observations confirmed that continuous 
+    swapping. The modified algorithms were benchmarked across eight diverse multi-modal, 30-dimensional functions. Experimental observations confirmed that continuous 
     blending crossover operators significantly enhanced performance on specific topographies. AX and UNDX demonstrated superior exploitation on macro-gradient 
-    landscapes, while the expanded exploratory geometry of SPX bypassed deceptive geometric traps. Conversely, highly exploitative operators such as PCX were 
-    uniquely vulnerable to premature convergence on multi-modal surfaces.
+    landscapes, while the expanded exploratory geometry of SPX bypassed deceptive geometric traps. Conversely, operators such as PCX were 
+    uniquely vulnerable to premature convergence on multi-modal surfaces. A consequence of the intended exploitative tuning. 
 
-    The remainder of this report is organised as follows. Section two details the mathematical formulations of the implemented crossover operators. S
-    ection three outlines the experimental setup, benchmark functions, and testing parameters. Section four presents convergence data and provides a 
-    comparative analysis of algorithm performance. Section five concludes the report and summarises key findings. 
+   The remainder of this report is organised as follows. Section two details the mathematical background of evolutionary 
+   algorithms and the canonical differential evolution framework. Section three provides the mathematical formulations 
+   and geometric logic for the five implemented crossover operators. Section four outlines the empirical procedure, 
+   including the benchmark functions and experimental control parameters. Section five presents the research results 
+   and convergence analysis. Finally, Section six concludes the report and summarises the primary research findings 
 
 
 \section{Background}
 
     Continuous optimisation involves finding the global minimum or maximum of an objective function within a multi-dimensional search 
-    space. Multi-modal geometric landscapes contain many local optima that trap traditional gradient-based 
-    search methods. NOTE: ADD WHAT I MEAN BY TRADITIONAL GRADIENT BASED SEARCH METHODS. Stochastic metaheuristic algorithms address this challenge on complex landscapes. 
+    space. Multi-modal geometric landscapes contain many local optima that trap traditional deterministic gradient-based 
+    search methods, such as steepest descent and conjugate gradient methods. Stochastic metaheuristic algorithms address this challenge on complex landscapes. 
     Metaheuristic algorithms must balance broad search across the landscape with local refinement of a candidate solution, to converge on the global solution.  
 
-    The broader field of evolutionary algorithms (EAs) is built upon several foundational paradigms. Genetic algorithms were conceptualized and 
+    The broader field of EA is built upon several foundational paradigms. Genetic algorithms were conceptualized and 
     popularized by the works of Fraser \cite{fraser1957}, Bremermann \cite{bremermann1962}, 
     Reed et al. \cite{reed1967}, and Holland \cite{holland1975}. Concurrently, 
     evolutionary programming was introduced by L.J. Fogel \cite{fogel_lj1962} and later extended to 
@@ -90,7 +92,7 @@ Stellenbosch, South Africa \\
     \cite{rechenberg1973} and Schwefel \cite{schwefel1977} pioneered evolution strategies, a paradigm 
     inherently reliant on real-valued deviations.
 
-    Differential evolution (DE) is a prominent subset of evolutionary algorithms (EAs) explicitly developed to solve continuous-valued 
+    DE is a prominent subset of EA explicitly developed to solve continuous-valued 
     optimisation problems.  Like traditional evolutionary algorithms, DE utilises a population of candidate solutions that evolve over successive 
     generations. However, unlike other evolutionary algorithms that apply selection before mutation, DE performs the mutation of a random vector 
     before applying selection. The mutation process itself also differs in the manner that mutation step sizes are not sampled 
@@ -104,40 +106,43 @@ Stellenbosch, South Africa \\
     the target vector to the spawned offspring vector, keeping strictly the candidate that yields the better fitness. The high level 
     execution of a standard DE algorithm is illustrated in Algorithm \ref{alg:canonical_de}. 
 
-    \begin{algorithm}[H]
+\begin{algorithm}[H]
 \caption{Standard Differential Evolution}
 \label{alg:canonical_de}
 \begin{algorithmic}[1] 
-\STATE \textbf{Initialize} population $P = \{\mathbf{x}_1, \dots, \mathbf{x}_{NP}\}$ randomly within search bounds
+\REQUIRE Population size $m$, Dimension $n$, Mutation scale factor $f$, Crossover rate $c$
+\ENSURE Optimized population matrix $\mathbf{P}$
+
+\STATE \textbf{Initialize} population $\mathbf{P} = \{\mathbf{x}_1, \dots, \mathbf{x}_m\}$ randomly within search bounds
 \WHILE{termination condition is not met}
-    \FOR{$i \in \{1, \dots, NP\}$}
+    \FOR{$i \in \{1, \dots, m\}$}
         \STATE \textit{// Mutation}
         \STATE Select distinct random indices from the population, excluding $i$
-        \STATE Generate a trial vector $\mathbf{v}_i$ using vector differences and scale factor $F$
+        \STATE Generate a trial vector $\mathbf{v}_i$ using vector differences and scale factor $f$
         
         \STATE \textit{// Recombination}
-        \STATE Generate an offspring vector $\mathbf{u}_i$ by recombining the trial vector $\mathbf{v}_i$ and target $\mathbf{x}_i$ based on crossover rate $CR$
+        \STATE Generate an offspring vector $\mathbf{u}_i$ by recombining trial vector $\mathbf{v}_i$ and target $\mathbf{x}_i$ based on crossover rate $c$
         
         \STATE \textit{// Selection}
-        \STATE Evaluate the fitness of the offspring $f(\mathbf{u}_i)$
-        \IF{$f(\mathbf{u}_i) \leq f(\mathbf{x}_i)$}
-            \STATE $\mathbf{x}_i^{next} \gets \mathbf{u}_i$
+        \STATE Evaluate the fitness of the offspring $g(\mathbf{u}_i)$
+        \IF{$g(\mathbf{u}_i) \leq g(\mathbf{x}_i)$}
+            \STATE $\mathbf{x}_i' \gets \mathbf{u}_i$
         \ELSE
-            \STATE $\mathbf{x}_i^{next} \gets \mathbf{x}_i$
+            \STATE $\mathbf{x}_i' \gets \mathbf{x}_i$
         \ENDIF
     \ENDFOR
-    \STATE $P \gets P^{next}$
+    \STATE $\mathbf{P} \gets \mathbf{P}'$
 \ENDWHILE
 \end{algorithmic}
 \end{algorithm}
 
-    The recombination phase is critical for injecting diversity and guiding the search geometry. In standard DE, diversity injection is achieved using 
-    discrete operators like binomial or exponential crossover. Metaheuristic algorithms build offspring vectors by independently swapping 
-    exact parameter values along the search axes. The discrete parameter-swapping approach is coordinate dependent and struggles on rotated or non-separable 
-    landscapes. To address this limitation, extensive literature within the domain of real-coded genetic algorithms (RCGAs) has explored 
-    continuous blending operators. Instead of swapping axis coordinates, these continuous operators create offspring by exploring 
-    the mathematical volume or geometry between parents. By utilizing techniques like arithmetic interpolation, simplex expansions, 
-    or Gaussian probability distributions, the geometric space between target vectors is explored in finer detail.
+The recombination phase is critical for injecting diversity and guiding the search geometry. In standard DE, diversity injection is achieved using 
+discrete operators like binomial or exponential crossover. Metaheuristic algorithms build offspring vectors by independently swapping 
+exact parameter values along the search axes. This discrete parameter-swapping approach is coordinate-dependent. 
+To address this limitation, literature within the domain of real-coded genetic algorithms (RCGAs) is applied to the DE paradigm. 
+Instead of swapping axis coordinates, the operators that create offspring by exploring 
+the mathematical geometry between parents implemented in the RCGA paradigm will be incorporated into DE. By utilizing techniques like arithmetic interpolation, 
+simplex expansions, or Gaussian probability distributions, the volume between target vectors will be explored in greater detail.
 
 
 \section{Methodology}
@@ -158,12 +163,12 @@ The exact pseudocode for this procedure is outlined in Algorithm \ref{alg:binomi
 \caption{Binomial Crossover}
 \label{alg:binomial_crossover}
 \begin{algorithmic}[1] 
-\REQUIRE Target vector $\mathbf{x}_i$, Trial vector $\mathbf{v}_i$, Crossover Rate $CR$, Dimension $D$
-\ENSURE Off spring vector $\mathbf{u}_i$
-\STATE $j_{rand} \gets \text{random integer in } [1, D]$
-\FOR{$j \in \{1, \dots, D\}$}
+\REQUIRE Target vector $\mathbf{x}_i$, Trial vector $\mathbf{v}_i$, Crossover rate $c$, Dimension $n$
+\ENSURE Offspring vector $\mathbf{u}_i$
+\STATE $j_{r} \gets \text{random integer in } [1, n]$
+\FOR{$j \in \{1, \dots, n\}$}
     \STATE $r \gets \text{random uniform number in } [0, 1]$
-    \IF{$r < CR$ \OR $j = j_{rand}$}
+    \IF{$r < c$ \OR $j = j_{r}$}
         \STATE $u_{i,j} \gets v_{i,j}$  \textit{ // Inherit from trial vector}
     \ELSE
         \STATE $u_{i,j} \gets x_{i,j}$  \textit{ // Inherit from target}
@@ -172,9 +177,8 @@ The exact pseudocode for this procedure is outlined in Algorithm \ref{alg:binomi
 \RETURN $\mathbf{u}_i$
 \end{algorithmic}
 \end{algorithm}
-
 \subsection{Uniform Arithmetic Crossover}
-To implement a highly explorative continuous blend, a uniform arithmetic operator was formulated \cite{michalewicz1992}. Unlike standard 
+To implement a highly explorative continuous blend, a uniform arithmetic operator was implemented \cite{michalewicz1992}. Unlike standard 
 linear arithmetic crossover which applies a single scalar across all dimensions, this implementation decoupled the 
 blending weights. For every dimension $j$, an independent random scalar $\gamma_j \in [0, 1]$ was sampled:
 \begin{equation}
@@ -188,9 +192,9 @@ The execution of this blend is detailed in Algorithm \ref{alg:ax_crossover}.
 \caption{Uniform Arithmetic Crossover}
 \label{alg:ax_crossover}
 \begin{algorithmic}[1] 
-\REQUIRE Target vector $\mathbf{x}_i$, Trial vector vector $\mathbf{v}_i$, Dimension $D$
+\REQUIRE Target vector $\mathbf{x}_i$, Trial vector vector $\mathbf{v}_i$, Dimension $n$
 \ENSURE Offspring vector $\mathbf{u}_i$
-\FOR{$j \in \{1, \dots, D\}$}
+\FOR{$j \in \{1, \dots, n\}$}
     \STATE $\gamma_j \gets \text{random uniform number in } [0, 1]$
     \STATE $u_{i,j} \gets (1 - \gamma_j) \cdot x_{i,j} + \gamma_j \cdot v_{i,j}$
 \ENDFOR
@@ -200,7 +204,7 @@ The execution of this blend is detailed in Algorithm \ref{alg:ax_crossover}.
 
 \subsection{Simplex Crossover}
 The simplex operator \cite{tsutsui1999} was implemented using $m=3$ parents: the target vector, the donor vector, and a randomly selected 
-third vector from the population. The center of mass $\mathbf{O}$ of these three vertices was calculated, and the 
+third vector from the population. The center of mass of these three vertices was calculated, and the 
 simplex was expanded outward using an expansion rate of $\epsilon = \sqrt{3}$. Offspring were uniformly sampled from 
 within this expanded barycentric geometry by generating two random weights, $r_1$ and $r_2$, shown in Figure \ref{fig:spx_viz}. A fold trick was 
 applied, where if $r_1 + r_2 > 1.0$, the values are inverted as $r_1 = 1 - r_1$ and $r_2 = 1 - r_2$ to ensure uniform interior distribution 
@@ -218,21 +222,21 @@ The simplex expansion and sampling process is outlined in Algorithm \ref{alg:spx
 \caption{Simplex Crossover}
 \label{alg:spx_crossover}
 \begin{algorithmic}[1] 
-\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $D$
-\ENSURE Trial vector $\mathbf{u}_i$
+\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $n$
+\ENSURE Offspring vector $\mathbf{u}_i$
 \STATE $m \gets 3$ \textit{ // Number of parents}
 \STATE $\epsilon \gets \sqrt{m}$ \textit{ // Expansion rate for three parents}
 
 \STATE \textit{// Calculate the center of mass}
-\FOR{$j \in \{1, \dots, D\}$}
-    \STATE $O_j \gets (x_{1,j} + x_{2,j} + x_{3,j}) / 3.0$
+\FOR{$j \in \{1, \dots, n\}$}
+    \STATE $o_j \gets (x_{1,j} + x_{2,j} + x_{3,j}) / 3.0$
 \ENDFOR
 
 \STATE \textit{// Calculate the expanded vertices}
-\FOR{$j \in \{1, \dots, D\}$}
-    \STATE $y_{1,j} \gets O_j + \epsilon \cdot (x_{1,j} - O_j)$
-    \STATE $y_{2,j} \gets O_j + \epsilon \cdot (x_{2,j} - O_j)$
-    \STATE $y_{3,j} \gets O_j + \epsilon \cdot (x_{3,j} - O_j)$
+\FOR{$j \in \{1, \dots, n\}$}
+    \STATE $y_{1,j} \gets o_j + \epsilon \cdot (x_{1,j} - o_j)$
+    \STATE $y_{2,j} \gets o_j + \epsilon \cdot (x_{2,j} - o_j)$
+    \STATE $y_{3,j} \gets o_j + \epsilon \cdot (x_{3,j} - o_j)$
 \ENDFOR
 
 \STATE \textit{// Generate two random weights and uniformly sample inside the triangle}
@@ -247,8 +251,8 @@ The simplex expansion and sampling process is outlined in Algorithm \ref{alg:spx
 \STATE $w_2 \gets r_1$
 \STATE $w_3 \gets r_2$
 
-\STATE \textit{// Assemble child vector using calculated weights}
-\FOR{$j \in \{1, \dots, D\}$}
+\STATE \textit{// Assemble offspring vector using calculated weights}
+\FOR{$j \in \{1, \dots, n\}$}
     \STATE $u_{i,j} \gets w_1 \cdot y_{1,j} + w_2 \cdot y_{2,j} + w_3 \cdot y_{3,j}$
 \ENDFOR
 
@@ -284,29 +288,29 @@ The complete sequence for the UNDX spatial projection is provided in Algorithm \
 \caption{Unimodal Normal Distribution Crossover}
 \label{alg:undx_crossover_mid}
 \begin{algorithmic}[1] 
-\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $D$
-\ENSURE Trial vector $\mathbf{u}_i$
+\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $n$
+\ENSURE Offspring vector $\mathbf{u}_i$
 \STATE $\sigma_\xi \gets 0.5$
-\STATE $\sigma_\eta \gets 0.35 / \sqrt{D}$
+\STATE $\sigma_\eta \gets 0.35 / \sqrt{n}$
 
 \STATE \textit{// 1. Define the primary search axis}
 \STATE $\mathbf{m} \gets \frac{1}{2}(\mathbf{x}_1 + \mathbf{x}_2)$
 \STATE $\mathbf{d} \gets \mathbf{x}_1 - \mathbf{x}_2$
 
-\STATE \textit{// 2. Calculate orthogonal distance $d_{orth}$ from $\mathbf{x}_3$}
+\STATE \textit{// 2. Calculate orthogonal distance $s$ from $\mathbf{x}_3$}
 \STATE $\mathbf{v} \gets \mathbf{x}_3 - \mathbf{x}_1$
-\STATE $\mathbf{v}_{proj} \gets \left( \frac{\mathbf{v} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$ \textit{ // Project $\mathbf{v}$ onto the primary axis}
-\STATE $\mathbf{v}_{orth} \gets \mathbf{v} - \mathbf{v}_{proj}$
-\STATE $d_{orth} \gets \|\mathbf{v}_{orth}\|$ \textit{ // Magnitude of the orthogonal component}
+\STATE $\mathbf{v}_p \gets \left( \frac{\mathbf{v} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$ \textit{ // Project vector onto primary axis}
+\STATE $\mathbf{v}_o \gets \mathbf{v} - \mathbf{v}_p$
+\STATE $s \gets \|\mathbf{v}_o\|$ \textit{ // Scalar magnitude of orthogonal component}
 
 \STATE \textit{// 3. Generate orthogonal Gaussian noise vector}
-\STATE $\mathbf{z} \gets$ random vector of length $D$ sampled from $\mathcal{N}(0, 1)$
-\STATE $\mathbf{z}_{proj} \gets \left( \frac{\mathbf{z} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
-\STATE $\mathbf{z}_{orth} \gets \mathbf{z} - \mathbf{z}_{proj}$
+\STATE $\mathbf{z} \gets$ random vector of length $n$ sampled from $\mathcal{N}(0, 1)$
+\STATE $\mathbf{z}_p \gets \left( \frac{\mathbf{z} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $\mathbf{z}_o \gets \mathbf{z} - \mathbf{z}_p$
 
-\STATE \textit{// 4. Assemble the trial vector}
+\STATE \textit{// 4. Assemble the offspring vector}
 \STATE $\xi \gets \text{random number sampled from } \mathcal{N}(0, \sigma_\xi^2)$
-\STATE $\mathbf{u}_i \gets \mathbf{m} + \xi\mathbf{d} + \sigma_\eta \cdot d_{orth} \cdot \mathbf{z}_{orth}$
+\STATE $\mathbf{u}_i \gets \mathbf{m} + \xi\mathbf{d} + \sigma_\eta \cdot s \cdot \mathbf{z}_o$
 
 \RETURN $\mathbf{u}_i$
 \end{algorithmic}
@@ -314,8 +318,8 @@ The complete sequence for the UNDX spatial projection is provided in Algorithm \
 
 \subsection{Parent-Centric Crossover}
 To evaluate an exploitative continuous operator, the Generalized PCX algorithm \cite{deb2002} was integrated, as visualized in Figure \ref{fig:pcx_viz}. The collective center 
-of mass $\mathbf{O}$ for the three parents was calculated, and the primary direction vector $\mathbf{d}_i$ was drawn 
-from $\mathbf{O}$ strictly toward the primary parent, which is the target vector. 
+of mass for the three parents was calculated, and the primary direction vector $\mathbf{d}_i$ was drawn 
+from the center toward the target vector.
 
 \begin{figure}[htbp]
     \centering
@@ -324,51 +328,56 @@ from $\mathbf{O}$ strictly toward the primary parent, which is the target vector
     \label{fig:pcx_viz}
 \end{figure}
 
-The average perpendicular distance $\bar{d}$ of the other two parents to this primary axis was computed. Using the 
-identical orthogonal projection shortcut ($\mathbf{z}_{orth}$) developed for UNDX, a Gaussian scatter cloud was 
+The average perpendicular distance $s$ of the other two parents to this primary axis was computed. Using the 
+identical orthogonal projection shortcut developed for UNDX, a Gaussian scatter cloud was 
 generated explicitly centered on the primary parent. The standard deviations for both the primary and orthogonal 
 spreads were fixed at highly exploitative values of $\sigma_\xi = 0.1$ and $\sigma_\eta = 0.1$.
+These values were selected intentionally to bias offspring generation toward local refinement around the current target, 
+thereby creating a deliberately exploitative variant for comparison with broader-search operators such as SPX and UNDX. 
+This design made it possible to explicitly test the trade-off between rapid local convergence and susceptibility to premature 
+trapping on multimodal landscapes.
 The steps for clustering the offspring around the primary parent are detailed in Algorithm \ref{alg:pcx_crossover}.
 
 \begin{algorithm}[htbp]
 \caption{Parent-Centric Crossover}
 \label{alg:pcx_crossover}
 \begin{algorithmic}[1] 
-\REQUIRE Target vector $\mathbf{x}_1$ (Primary), Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $D$
-\ENSURE Trial vector $\mathbf{u}_i$
+\REQUIRE Target vector $\mathbf{x}_1$, Donor vector $\mathbf{x}_2$, Random vector $\mathbf{x}_3$, Dimension $n$
+\ENSURE Offspring vector $\mathbf{u}_i$
 \STATE $\sigma_\xi \gets 0.1$ \textit{ // Highly exploitative primary spread}
 \STATE $\sigma_\eta \gets 0.1$ \textit{ // Highly exploitative orthogonal spread}
 
 \STATE \textit{// 1. Calculate Center of Mass and Primary Axis}
-\STATE $\mathbf{O} \gets \frac{1}{3}(\mathbf{x}_1 + \mathbf{x}_2 + \mathbf{x}_3)$
-\STATE $\mathbf{d} \gets \mathbf{x}_1 - \mathbf{O}$ \textit{ // Direction vector points strictly toward Primary Parent}
+\STATE $\mathbf{o} \gets \frac{1}{3}(\mathbf{x}_1 + \mathbf{x}_2 + \mathbf{x}_3)$
+\STATE $\mathbf{d} \gets \mathbf{x}_1 - \mathbf{o}$ \textit{ // Direction vector points strictly toward Primary Parent}
 
-\STATE \textit{// 2. Calculate average orthogonal distance $\bar{d}$ of other parents}
+\STATE \textit{// 2. Calculate average orthogonal distance $s$ of other parents}
 \STATE $\mathbf{v}_2 \gets \mathbf{x}_2 - \mathbf{x}_1$
-\STATE $\mathbf{v}_{2, proj} \gets \left( \frac{\mathbf{v}_2 \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
-\STATE $d_2 \gets \|\mathbf{v}_2 - \mathbf{v}_{2, proj}\|$
+\STATE $\mathbf{v}_{2, p} \gets \left( \frac{\mathbf{v}_2 \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $s_2 \gets \|\mathbf{v}_2 - \mathbf{v}_{2, p}\|$
 
 \STATE $\mathbf{v}_3 \gets \mathbf{x}_3 - \mathbf{x}_1$
-\STATE $\mathbf{v}_{3, proj} \gets \left( \frac{\mathbf{v}_3 \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
-\STATE $d_3 \gets \|\mathbf{v}_3 - \mathbf{v}_{3, proj}\|$
+\STATE $\mathbf{v}_{3, p} \gets \left( \frac{\mathbf{v}_3 \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $s_3 \gets \|\mathbf{v}_3 - \mathbf{v}_{3, p}\|$
 
-\STATE $\bar{d} \gets \frac{d_2 + d_3}{2}$ \textit{ // Average perpendicular distance}
+\STATE $s \gets \frac{s_2 + s_3}{2}$ \textit{ // Average perpendicular distance}
 
 \STATE \textit{// 3. Generate orthogonal Gaussian noise vector}
-\STATE $\mathbf{z} \gets$ random vector of length $D$ sampled from $\mathcal{N}(0, 1)$
-\STATE $\mathbf{z}_{proj} \gets \left( \frac{\mathbf{z} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
-\STATE $\mathbf{z}_{orth} \gets \mathbf{z} - \mathbf{z}_{proj}$
+\STATE $\mathbf{z} \gets$ random vector of length $n$ sampled from $\mathcal{N}(0, 1)$
+\STATE $\mathbf{z}_p \gets \left( \frac{\mathbf{z} \cdot \mathbf{d}}{\mathbf{d} \cdot \mathbf{d}} \right) \mathbf{d}$
+\STATE $\mathbf{z}_o \gets \mathbf{z} - \mathbf{z}_p$
 
-\STATE \textit{// 4. Assemble the trial vector (Centered exactly on the Primary Parent)}
+\STATE \textit{// 4. Assemble the offspring vector (Centered exactly on the Primary Parent)}
 \STATE $\xi \gets \text{random number sampled from } \mathcal{N}(0, \sigma_\xi^2)$
-\STATE $\mathbf{u}_i \gets \mathbf{x}_1 + \xi\mathbf{d} + \sigma_\eta \cdot \bar{d} \cdot \mathbf{z}_{orth}$
+\STATE $\mathbf{u}_i \gets \mathbf{x}_1 + \xi\mathbf{d} + \sigma_\eta \cdot s \cdot \mathbf{z}_o$
 
 \RETURN $\mathbf{u}_i$
 \end{algorithmic}
 \end{algorithm}
 
 \section{Empirical Procedure}
-To evaluate the impact of continuous crossover operators against the baseline discrete binomial crossover, a rigorous empirical study was conducted. The procedure was designed to test the convergence speed of the algorithms, 
+To evaluate the impact of continuous crossover operators against the baseline discrete binomial crossover, a rigorous empirical study was conducted. 
+The procedure was designed to test the convergence speed of the algorithms, 
 accuracy, spatial expansion and ability to avoid premature stagnation across a variety of mathematical landscapes.
 
 \subsection{Benchmark Problems}
@@ -402,14 +411,14 @@ To ensure a high-dimensional challenge that accurately reflects complex engineer
 dimensionality of $D = 30$.
 
 \subsection{Performance Measures}
-The primary performance measure utilized for this study was Average Best Fitness (Accuracy). 
-For each iteration, the fitness of the best candidate solution in the population was recorded. Because Differential Evolution 
+The primary performance measure utilized for this study was the average best fitness. 
+For each iteration, the fitness of the best candidate solution in the population was recorded. Because DE 
 is a stochastic algorithm, tracking the fitness of a single run is insufficient to draw reliable conclusions. Therefore, the 
 best fitness values were averaged across all independent runs at each iteration step. This averaging methodology allowed for the generation of average 
 convergence curves to visually and quantitatively assess the final accuracy of each crossover variant.
 
 \subsection{Control Parameters}
-To ensure a fair comparison, the foundational algorithm architecture remained constant across all implementations, with only the 
+To ensure a fair comparison, the baseline algorithm architecture remained constant across all implementations, with only the 
 crossover mechanism varying, as detailed in Table \ref{tab:control_params}.
 
 \begin{table}[htbp]
@@ -439,9 +448,9 @@ To account for the stochastic nature of evolutionary algorithms, each of the fiv
 30 independent runs on all eight benchmark functions. The initialization bounds for the first generation were strictly 
 enforced according to the standard domain constraints of each respective benchmark function, as detailed in Table 
 \ref{tab:benchmarks}. To formally validate the observed performance disparities, a 
-non-parametric Mann-Whitney U test ($\alpha = 0.05$) was conducted to compare the 
+non-parametric Mann-Whitney U test, using an $\alpha = 0.05$, was conducted to compare the 
 final fitness distributions of the leading crossover operators against the discrete 
-baseline. The complete hypothesis-test summary is provided in Section 
+baseline. The complete hypothesis-test summary is provided in Appendix 
 \ref{sec:stat_sig_tests}, Table \ref{tab:p_values}.
 
 \section{Research Results}
@@ -453,7 +462,7 @@ For completeness and reproducibility, full descriptive statistics for all solver
 
 \subsection{Performance on Macro-Gradient Landscapes}
 On benchmark functions characterized by a strong underlying macro-gradient directing the search toward a 
-global basin—specifically Ackley, Alpine 1, Griewank, Levy, and Salomon—a clear performance hierarchy was 
+global basin---specifically Ackley, Alpine 1, Griewank, Levy, and Salomon---a clear performance hierarchy was 
 observed. 
 
 \begin{figure}[htbp]
@@ -464,9 +473,9 @@ observed.
 \end{figure}
 
 Figure \ref{fig:alpine_convergence} and Figure \ref{fig:ackley_convergence} show that uniform arithmetic crossover,
-denoted as DE/rand/2/AX, and unimodal normal distribution crossover, denoted as DE/rand/2/UNDX, vastly outperformed 
+denoted as DE\_rand\_2\_AX, and unimodal normal distribution crossover, denoted as DE\_rand\_2\_UNDX, vastly outperformed 
 the remaining variants. Both AX and UNDX exhibited near-instantaneous convergence to the global optimum 
-within the first 200 iterations and demonstrated statistically significant superiority over the baseline ($p < 0.05$). The mathematical formulation of AX and UNDX supports interpolative sampling of 
+within the first 200 iterations and demonstrated statistically significant superiority over the baseline, $p < 0.05$. The mathematical formulation of AX and UNDX supports interpolative sampling of 
 continuous space between parents, making both crossover mechanisms highly efficient exploiters when a reliable landscape gradient points toward the minimum.
 
 
@@ -477,7 +486,7 @@ continuous space between parents, making both crossover mechanisms highly effici
     \label{fig:ackley_convergence}
 \end{figure}
 
-Conversely, simplex crossover, denoted as DE/rand/2/SPX, demonstrated severe premature stagnation on 
+Conversely, simplex crossover, denoted as DE\_rand\_2\_SPX, demonstrated severe premature stagnation on 
 the same landscapes. Across Ackley, Alpine 1, Griewank, Levy, and Salomon, SPX rapidly 
 descended during initial iterations but flatlined before reaching the global optimum. 
 SPX stagnated near an accuracy of 7.0 on Ackley and Alpine 1. Figure \ref{fig:ackley_box} shows that final fitness distributions on Ackley reflected a 
@@ -498,16 +507,17 @@ The structural bias of the algorithms shifted when evaluated on highly deceptive
 multimodal topologies, specifically Michalewicz, Rastrigin, and Schwefel. 
 On these landscapes, high-frequency local minima act as severe traps for heavily exploitative operators.
 
-Convergence plots showed that DE/rand/2/SPX was the strongest performer on these complex surfaces. 
+Convergence plots showed that DE\_rand\_2\_SPX was the strongest performer on these complex surfaces. 
 On Michalewicz, SPX successfully bypassed the steep directional ridges to achieve a final median fitness of roughly 
--20.5, diving significantly deeper than the -11.8 of the discrete baseline ($p < 0.05$). The value of expanded barycentric geometry 
+-20.5, diving significantly deeper than the -11.8 of the discrete baseline. The value of expanded barycentric geometry 
 was apparent when examining the performance distribution on highly deceptive topologies. Michalewicz features steep, 
 directional valleys and ridges that heavily penalize algorithms lacking coordinate independence. While the convergence 
-curves demonstrated superior average depth for SPX, and the Michalewicz boxplot in Figure \ref{fig:michalewicz_box} revealed 
-structural vulnerability of the other operators. Highly exploitative algorithms like PCX and AX exhibit incredibly tight 
+curves demonstrated superior average depth for SPX, the Michalewicz boxplot in Figure \ref{fig:michalewicz_box} revealed 
+the structural vulnerability of the other operators. Highly exploitative algorithms like PCX and AX exhibit incredibly tight 
 interquartile ranges at much poorer fitness levels, indicating consistent, premature convergence into the exact same local 
-traps across all 30 independent runs. In contrast, the slightly wider variance of SPX at a much deeper fitness level 
-demonstrated the exploratory resilience of the crossover operator. Rather than collapsing into a single false ridge, expanded geometry allowed 
+traps across all 30 independent runs. For PCX, this behavior is consistent with the intentionally exploitative fixed settings 
+reported in Table \ref{tab:control_params}, $\sigma_\xi = 0.1$, $\sigma_\eta = 0.1$. In contrast, the slightly wider variance of SPX at a much deeper fitness level 
+demonstrated the exploratory resilience of the simplex crossover operator. Rather than collapsing into a single false ridge, the expanded barycentric geometry allowed 
 SPX to consistently navigate into the deepest region of the search space.
 
 \begin{figure}[htbp]
@@ -521,7 +531,7 @@ On Rastrigin and Schwefel, Figure \ref{fig:rastrigin_convergence} and Figure \re
 navigated past the massive array of regularly distributed 
 local optima to achieve the best fitness values of the entire test suite. By uniformly sampling within 
 an expanded barycentric triangle, SPX inherently resists population collapse, preserving enough geometric 
-diversity to escape the local traps that permanently snared AX and UNDX.
+diversity to escape the local traps that permanently trapped AX and UNDX.
 
 \begin{figure}[htbp]
     \centering
@@ -544,12 +554,10 @@ continuous parent-centric crossover consistently struggled to match the leading 
 
 The discrete parameter-swapping nature of the binomial baseline restricted the search trajectory to a 
 rigid coordinate grid causing step-like convergence on smooth, non-separable functions 
-like Griewank, as shown in Figure \ref{fig:griewank_convergence}, and Levy. While PCX operates in continuous space, the highly localized anchor on the 
+like Griewank, as shown in Figure \ref{fig:griewank_convergence}. While PCX operates in continuous space, the highly localized anchor on the 
 primary parent proved far too exploitative. Because spatial variance was strictly limited, PCX lacked 
-the geometric flexibility to explore broadly, frequently resulting in premature stagnation on both flat and complex landscapes. However, it 
-must be acknowledged that PCX was deliberately configured with highly exploitative static 
-hyperparameters ($\sigma_\xi = 0.1$ and $\sigma_\eta = 0.1$) for this study; dynamic parameter 
-adaptation or a broader initial variance could potentially alter its geometric resilience on 
+the geometric flexibility to explore broadly, frequently resulting in premature stagnation on both flat and complex landscapes. 
+A broader initial variance could potentially alter its geometric resilience on 
 these multimodal landscapes.
 
 \begin{figure}[htbp]
@@ -560,8 +568,8 @@ these multimodal landscapes.
 \end{figure}
 
 \section{Conclusion}
-This study investigated whether continuous blending crossover operators, including uniform arithmetic crossover (AX), unimodal normal distribution crossover (UNDX), parent-centric crossover (PCX), and simplex crossover (SPX), could overcome the geometric 
-limitations of canonical discrete binomial recombination within the differential evolution (DE) framework. The operators were 
+This study investigated whether continuous blending crossover operators, including uniform arithmetic crossover, unimodal normal distribution crossover, parent-centric crossover, and simplex crossover, could overcome the geometric 
+limitations of the baseline discrete binomial recombination within the differential evolution framework. The operators were 
 evaluated across a rigorous suite of eight 30-dimensional benchmark functions to assess their relative exploration and exploitation 
 capabilities over 3000 iterations. 
 
@@ -575,40 +583,39 @@ and the discrete baseline, consistently underperformed due to insufficient spati
 
 A primary learning outcome from this implementation is that algorithmic success relies heavily on matching the continuous 
 search geometry to the specific topological challenges of the environment. Moving from a discrete grid to a continuous volume 
-is not a universal solution if the spatial variance is not carefully calibrated to prevent population collapse. This conclusion 
-is supported by the full per-function distribution summaries in Appendix C, Table \ref{tab:summary_stats}, and by the hypothesis-test outcomes 
+is not a universal solution if the spatial variance is not carefully calibrated to prevent population collapse. The research findings are supported by the full per-function 
+distribution summaries in Appendix C, Table \ref{tab:summary_stats}, and by the hypothesis-test outcomes 
 in Appendix D, Table \ref{tab:p_values}. 
 
 Future work should explore dynamic, adaptive strategies that shift between exploitative operators, such as UNDX, 
-and exploratory operators, such as SPX, based on real-time landscape feedback. Future work should also 
-hybridize geometric DE crossover mechanisms with particle swarm optimisation (PSO) architectures, combining 
-the spatial diversity of barycentric expansion with swarm-velocity momentum to address high-dimensional continuous domains.
+and exploratory operators, such as SPX, based on real-time landscape feedback.
 
 \appendices
 
 \section{Acronyms}
 \begin{itemize}
-    \item AX: Uniform Arithmetic Crossover
-    \item DE: Differential Evolution
-    \item PCX: Parent-Centric Crossover
-    \item SPX: Simplex Crossover
-    \item UNDX: Unimodal Normal Distribution Crossover
+    \item AX: uniform arithmetic crossover
+    \item DE: differential evolution
+    \item PCX: parent-centric crossover
+    \item SPX: simplex crossover
+    \item UNDX: unimodal normal distribution crossover
 \end{itemize}
 
 \section{Symbols}
 \begin{itemize}
-    \item $CR$: Binomial crossover rate
-    \item $D$: Dimensionality of the search space
-    \item $\epsilon$: Simplex expansion rate
-    \item $F$: Mutation scale factor
-    \item $f(x)$: Objective fitness function evaluated at point $x$
-    \item $NP$: Total number of candidates in the population
-    \item $\sigma_\xi$: Standard deviation of the primary spread
-    \item $\sigma_\eta$: Standard deviation of the orthogonal spread
-    \item $t$: Current iteration or generation number
-    \item $u_i$: Trial or offspring vector
-    \item $v_i$: Donor vector
-    \item $x_i$: Target vector
+    \item $\beta$: differential weight (mutation scale factor)
+    \item $\epsilon$: simplex expansion rate
+    \item $g(\mathbf{x})$: objective fitness function evaluated at point $\mathbf{x}$
+    \item $n$: dimensionality of the search space
+    \item $n_s$: number of individuals in the population
+    \item $\mathbf{o}$: center of mass vector
+    \item $p_r$: crossover probability
+    \item $\sigma_\xi$: standard deviation of the primary spread
+    \item $\sigma_\eta$: standard deviation of the orthogonal spread
+    \item $t$: current iteration or generation number
+    \item $\mathbf{u}_i$: trial or offspring vector
+    \item $\mathbf{v}_i$: donor vector
+    \item $\mathbf{x}_i$: target vector
 \end{itemize}
 
 \section{Detailed Summary Statistics}
